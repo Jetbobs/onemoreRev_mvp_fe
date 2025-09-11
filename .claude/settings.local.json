@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npx:*)",
-      "WebFetch(domain:ui.shadcn.com)"
+      "WebFetch(domain:ui.shadcn.com)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
