@@ -4,7 +4,8 @@
       "Bash(npx:*)",
       "WebFetch(domain:ui.shadcn.com)",
       "Bash(npm install:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
