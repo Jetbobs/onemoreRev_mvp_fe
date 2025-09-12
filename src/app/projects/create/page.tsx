@@ -649,15 +649,15 @@ const MultiStepProjectForm = () => {
                   <div key={installment.id} className="space-y-2">
                     <div className="flex justify-between items-center py-3">
                       <div className="flex items-center gap-3">
-                        <Badge variant="secondary">{index + 1}</Badge>
+                        <Badge variant="secondary" className="font-bold bg-gray-200">{index + 1}</Badge>
                         <div>
-                          <span className="font-medium">{installment.name}</span>
+                          <span className="font-medium font-bold">{installment.name}</span>
                           {installment.description && (
                             <p className="text-sm text-muted-foreground">{installment.description}</p>
                           )}
                         </div>
                       </div>
-                      <Badge variant="outline" className="font-bold">
+                      <Badge variant="outline" className="font-bold border-none text-[16px]">
                         {formatCurrency(Math.round(totalAmount * installment.percentage / 100))}원
                       </Badge>
                     </div>
@@ -667,7 +667,7 @@ const MultiStepProjectForm = () => {
                 <Separator className="my-4" />
                 <div className="flex justify-between items-center py-2">
                   <span className="text-lg font-semibold">총 결제금액:</span>
-                  <Badge variant="outline" className="text-xl font-bold">
+                  <Badge variant="outline" className="text-xl font-bold border-none">
                     {formatCurrency(totalAmount)}원
                   </Badge>
                 </div>
