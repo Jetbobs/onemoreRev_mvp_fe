@@ -431,12 +431,12 @@ const MultiStepProjectForm = () => {
     return (
       <div className="space-y-6">
         {/* 총 금액 표시 */}
-        <div className="space-y-2">
+        {/* <div className="space-y-2 flex justify-between">
           <h3 className="text-lg font-semibold">프로젝트 총 금액</h3>
           <p className="text-2xl font-bold text-primary">
             {formatCurrency(totalAmount)}원
           </p>
-        </div>
+        </div> */}
 
         {/* 결제 방식 선택 */}
         <Card>
@@ -460,21 +460,18 @@ const MultiStepProjectForm = () => {
                     <CardContent className="p-6">
                       <div className="flex items-center space-x-3">
                         <RadioGroupItem value="lump-sum" id="lump-sum" />
-                        <div>
                         <div className="flex-1">
-                          <h4 className="font-semibold">일시불 결제</h4>
-                          <p className="text-sm text-muted-foreground">전체 금액을 한 번에 결제</p>
+                          <h4 className="font-semibold text-[16px]">일시불 결제</h4>
+                          <p className="text-sm text-muted-foreground"></p>
                         </div>
-                        <div className="mt-4">
-                        <Badge variant="outline" className="text-lg font-bold">
+                        {formData.paymentMethod === 'lump-sum' && <CheckCircle className="w-5 h-5 text-primary" />}
+
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <Badge variant="outline" className="text-lg font-bold border-none px-0">
                           {formatCurrency(totalAmount)}원
                         </Badge>
                       </div>
-                        </div>
-  
-                        {formData.paymentMethod === 'lump-sum' && <CheckCircle className="w-5 h-5 text-primary" />}
-                      </div>
-
                     </CardContent>
                   </Card>
                 </Label>
@@ -487,13 +484,13 @@ const MultiStepProjectForm = () => {
                       <div className="flex items-center space-x-3">
                         <RadioGroupItem value="installment" id="installment" />
                         <div className="flex-1">
-                          <h4 className="font-semibold">분할 결제</h4>
-                          <p className="text-sm text-muted-foreground">단계별로 나누어 결제</p>
+                          <h4 className="font-semibold text-[16px]">분할 결제</h4>
+                          <p className="text-sm text-muted-foreground"></p>
                         </div>
                         {formData.paymentMethod === 'installment' && <CheckCircle className="w-5 h-5 text-primary" />}
                       </div>
-                      <div className="mt-4">
-                        <Badge variant="outline" className="text-lg font-bold">
+                      <div className="mt-4 flex justify-end">
+                        <Badge variant="outline" className="text-lg font-bold border-none px-0">
                           {installments.length}단계 분할
                         </Badge>
                       </div>
@@ -537,7 +534,7 @@ const MultiStepProjectForm = () => {
                   <Card key={installment.id} className="p-4">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="w-8 h-8 rounded-full flex items-center justify-center">
+                        <Badge variant="secondary" className="w-8 h-8 rounded-md flex items-center justify-center font-bold bg-gray-200">
                           {index + 1}
                         </Badge>
                         {installments.length > 1 && (
