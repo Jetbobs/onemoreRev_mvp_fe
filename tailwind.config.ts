@@ -9,14 +9,11 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        pretendard: [
+        sans: [
           "Pretendard",
           "-apple-system",
           "BlinkMacSystemFont",
           "system-ui",
-          "Roboto",
-          "Helvetica Neue",
-          "Segoe UI",
           "Apple SD Gothic Neo",
           "Noto Sans KR",
           "Malgun Gothic",
