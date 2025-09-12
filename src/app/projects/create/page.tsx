@@ -522,7 +522,7 @@ const MultiStepProjectForm = () => {
                   <CardTitle>분할 결제 설정</CardTitle>
                   <CardDescription>각 단계별 결제 비율과 조건을 설정해주세요</CardDescription>
                 </div>
-                <Button onClick={addInstallment} className="gap-2">
+                <Button onClick={addInstallment} variant="outline" className="gap-2">
                   <Plus className="w-4 h-4" />
                   단계 추가
                 </Button>
