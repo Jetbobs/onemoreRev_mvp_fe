@@ -31,7 +31,7 @@ const Textarea = React.forwardRef<
         ref={ref as React.Ref<HTMLDivElement>}
         value={value as string}
         onChange={handleTiptapChange}
-        onBlur={props.onBlur}
+        onBlur={props.onBlur as (() => void) | undefined}
         placeholder={props.placeholder}
         className={className}
         id={props.id}

@@ -18,6 +18,7 @@ interface TiptapEditorProps {
 
 const TiptapEditor = React.forwardRef<HTMLDivElement, TiptapEditorProps>(
   ({ value = '', onChange, onBlur, placeholder = '', className, id, rows = 4 }, ref) => {
+    const [isFocused, setIsFocused] = React.useState(false);
     const editor = useEditor({
       extensions: [
         StarterKit.configure({
@@ -34,7 +35,7 @@ const TiptapEditor = React.forwardRef<HTMLDivElement, TiptapEditorProps>(
         attributes: {
           class: cn(
             'prose prose-sm max-w-none focus:outline-none px-3 py-2',
-            `min-h-[${rows * 1.5}rem]`,
+            `min-h-[${rows * 2 - 3}rem]`,
             '[&_p]:m-0 [&_p]:leading-relaxed',
             '[&_ul]:mt-2 [&_ul]:mb-2 [&_ul]:pl-4',
             '[&_ol]:mt-2 [&_ol]:mb-2 [&_ol]:pl-4',
@@ -44,7 +45,12 @@ const TiptapEditor = React.forwardRef<HTMLDivElement, TiptapEditorProps>(
           ),
         },
         handleDOMEvents: {
+          focus: () => {
+            setIsFocused(true);
+            return false;
+          },
           blur: () => {
+            setIsFocused(false);
             onBlur?.();
             return false;
           },
@@ -97,7 +103,7 @@ const TiptapEditor = React.forwardRef<HTMLDivElement, TiptapEditorProps>(
             "rounded-md border border-gray-300 bg-transparent",
             className
           )}
-          style={{ minHeight: `${rows * 1.5}rem` }}
+          style={{ minHeight: `${rows * 2}rem` }}
         >
           <div className="border-b border-gray-200 p-2">
             <div className="flex gap-1 opacity-50">
@@ -172,9 +178,9 @@ const TiptapEditor = React.forwardRef<HTMLDivElement, TiptapEditorProps>(
         </div>
 
         {/* Editor */}
-        <div className="relative">
+        <div className="relative" style={{ minHeight: `${rows * 2 - 3}rem` }}>
           <EditorContent editor={editor} />
-          {!editor.getText() && placeholder && (
+          {!editor.getText() && !isFocused && placeholder && (
             <div className="absolute top-2 left-3 text-gray-400 text-sm pointer-events-none">
               {placeholder}
             </div>

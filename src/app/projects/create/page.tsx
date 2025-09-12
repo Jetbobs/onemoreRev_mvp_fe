@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Plus, Trash2 } from 'lucide-react';
 
 const MultiStepProjectForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -30,6 +32,13 @@ const MultiStepProjectForm = () => {
     // Step 3
     paymentMethod: ''
   });
+
+  // 분할 결제 관련 state
+  const [installments, setInstallments] = useState([
+    { id: 1, name: '계약금', percentage: 30, description: '프로젝트 시작 시' },
+    { id: 2, name: '중간금', percentage: 40, description: '중간 단계 완료 시' },
+    { id: 3, name: '잔금', percentage: 30, description: '최종 납품 완료 시' }
+  ]);
 
   const [touched, setTouched] = useState({
     projectName: false,
@@ -60,6 +69,40 @@ const MultiStepProjectForm = () => {
       ...prev,
       [field]: true
     }));
+  };
+
+  // 분할 결제 관련 함수들
+  const addInstallment = () => {
+    const newId = Math.max(...installments.map(i => i.id)) + 1;
+    setInstallments([
+      ...installments,
+      { id: newId, name: `${newId}차 결제`, percentage: 0, description: '' }
+    ]);
+  };
+
+  const removeInstallment = (id: number) => {
+    if (installments.length > 1) {
+      setInstallments(installments.filter(i => i.id !== id));
+    }
+  };
+
+  const updateInstallment = (id: number, field: string, value: string | number) => {
+    setInstallments(installments.map(i => 
+      i.id === id ? { ...i, [field]: value } : i
+    ));
+  };
+
+  const totalPercentage = installments.reduce((sum, i) => sum + i.percentage, 0);
+  const remainingPercentage = 100 - totalPercentage;
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ko-KR').format(amount);
+  };
+
+  const getAlertVariant = () => {
+    if (totalPercentage === 100) return 'default';
+    if (totalPercentage > 100) return 'destructive';
+    return 'default';
   };
 
   const getFieldError = (field: string) => {
@@ -176,9 +219,15 @@ const MultiStepProjectForm = () => {
           id="projectDescription"
           placeholder="프로젝트에 대한 상세 설명을 입력하세요"
           value={formData.projectDescription}
-          onChange={(e) => handleInputChange('projectDescription', e.target.value)}
+          onChange={(e) => {
+            if (typeof e === 'string') {
+              handleInputChange('projectDescription', e);
+            } else {
+              handleInputChange('projectDescription', e.target.value);
+            }
+          }}
           onBlur={() => handleBlur('projectDescription')}
-          rows={4}
+          rows={6}
         />
         <div className="min-h-[32px]">
           {getFieldError('projectDescription') && (
@@ -352,7 +401,13 @@ const MultiStepProjectForm = () => {
           id="revisionCriteria"
           placeholder="수정 기준에 대한 상세 내용을 입력하세요"
           value={formData.revisionCriteria}
-          onChange={(e) => handleInputChange('revisionCriteria', e.target.value)}
+          onChange={(e) => {
+            if (typeof e === 'string') {
+              handleInputChange('revisionCriteria', e);
+            } else {
+              handleInputChange('revisionCriteria', e.target.value);
+            }
+          }}
           onBlur={() => handleBlur('revisionCriteria')}
           rows={6}
         />
@@ -370,26 +425,86 @@ const MultiStepProjectForm = () => {
     </div>
   );
 
-  const renderStep3 = () => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="paymentMethod" className="mb-2.5 block">결제 방식</Label>
-        <Select
-          value={formData.paymentMethod}
-          onValueChange={(value) => {
-            handleInputChange('paymentMethod', value);
-            handleBlur('paymentMethod');
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="결제 방식을 선택하세요" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="prepaid">일시불 (선불)</SelectItem>
-            <SelectItem value="postpaid">일시불 (후불)</SelectItem>
-            <SelectItem value="installment">분할 납부</SelectItem>
-          </SelectContent>
-        </Select>
+  const renderStep3 = () => {
+    const totalAmount = parseInt(formData.budget) || 0;
+    
+    return (
+      <div className="space-y-6">
+        {/* 총 금액 표시 */}
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">프로젝트 총 금액</h3>
+          <p className="text-2xl font-bold text-primary">
+            {formatCurrency(totalAmount)}원
+          </p>
+        </div>
+
+        {/* 결제 방식 선택 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>결제 방식 선택</CardTitle>
+            <CardDescription>일시불 또는 분할결제를 선택해주세요</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup 
+              value={formData.paymentMethod} 
+              onValueChange={(value) => {
+                handleInputChange('paymentMethod', value);
+                handleBlur('paymentMethod');
+              }}
+            >
+              <div className="space-y-4 flex flex-col gap-4">
+                <Label htmlFor="lump-sum" className="cursor-pointer">
+                  <Card className={`transition-all hover:shadow-md ${
+                    formData.paymentMethod === 'lump-sum' ? 'ring-2 ring-primary' : ''
+                  }`}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3">
+                        <RadioGroupItem value="lump-sum" id="lump-sum" />
+                        <div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold">일시불 결제</h4>
+                          <p className="text-sm text-muted-foreground">전체 금액을 한 번에 결제</p>
+                        </div>
+                        <div className="mt-4">
+                        <Badge variant="outline" className="text-lg font-bold">
+                          {formatCurrency(totalAmount)}원
+                        </Badge>
+                      </div>
+                        </div>
+  
+                        {formData.paymentMethod === 'lump-sum' && <CheckCircle className="w-5 h-5 text-primary" />}
+                      </div>
+
+                    </CardContent>
+                  </Card>
+                </Label>
+
+                <Label htmlFor="installment" className="cursor-pointer">
+                  <Card className={`transition-all hover:shadow-md ${
+                    formData.paymentMethod === 'installment' ? 'ring-2 ring-primary' : ''
+                  }`}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3">
+                        <RadioGroupItem value="installment" id="installment" />
+                        <div className="flex-1">
+                          <h4 className="font-semibold">분할 결제</h4>
+                          <p className="text-sm text-muted-foreground">단계별로 나누어 결제</p>
+                        </div>
+                        {formData.paymentMethod === 'installment' && <CheckCircle className="w-5 h-5 text-primary" />}
+                      </div>
+                      <div className="mt-4">
+                        <Badge variant="outline" className="text-lg font-bold">
+                          {installments.length}단계 분할
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Label>
+              </div>
+            </RadioGroup>
+          </CardContent>
+        </Card>
+
         <div className="min-h-[32px]">
           {getFieldError('paymentMethod') && (
             <Alert variant="destructive" className="py-2 border-0 bg-transparent px-0 flex items-center gap-2 [&>svg]:static [&>svg]:translate-y-0 [&>svg~*]:pl-0">
@@ -400,25 +515,176 @@ const MultiStepProjectForm = () => {
             </Alert>
           )}
         </div>
-      </div>
 
-      {/* 선택된 결제 방식에 대한 요약 정보 */}
-      <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-        <h3 className="font-semibold mb-4">프로젝트 요약</h3>
-        <div className="space-y-2 text-sm">
-          <p><span className="font-medium">프로젝트명:</span> {formData.projectName}</p>
-          <p><span className="font-medium">비용:</span> {formData.budget ? `${parseInt(formData.budget).toLocaleString()}원` : ''}</p>
-          <p><span className="font-medium">수정 횟수:</span> {formData.revisionCount}회</p>
-          <p><span className="font-medium">추가 수정 요금:</span> {formData.additionalRevisionFee ? `${parseInt(formData.additionalRevisionFee).toLocaleString()}원` : ''}</p>
-          <p><span className="font-medium">결제 방식:</span> {
-            formData.paymentMethod === 'prepaid' ? '일시불 (선불)' :
-            formData.paymentMethod === 'postpaid' ? '일시불 (후불)' :
-            formData.paymentMethod === 'installment' ? '분할 납부' : ''
-          }</p>
-        </div>
+        {/* 분할결제 상세 설정 */}
+        {formData.paymentMethod === 'installment' && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>분할 결제 설정</CardTitle>
+                  <CardDescription>각 단계별 결제 비율과 조건을 설정해주세요</CardDescription>
+                </div>
+                <Button onClick={addInstallment} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  단계 추가
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                {installments.map((installment, index) => (
+                  <Card key={installment.id} className="p-4">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="secondary" className="w-8 h-8 rounded-full flex items-center justify-center">
+                          {index + 1}
+                        </Badge>
+                        {installments.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeInstallment(installment.id)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor={`name-${installment.id}`} className="text-sm font-medium">
+                          결제 단계명
+                        </Label>
+                        <Input
+                          id={`name-${installment.id}`}
+                          value={installment.name}
+                          onChange={(e) => updateInstallment(installment.id, 'name', e.target.value)}
+                          placeholder="결제 단계명"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`percentage-${installment.id}`} className="text-sm font-medium">
+                          비율 (%)
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id={`percentage-${installment.id}`}
+                            type="number"
+                            value={installment.percentage}
+                            onChange={(e) => updateInstallment(installment.id, 'percentage', parseInt(e.target.value) || 0)}
+                            placeholder="0"
+                            min="0"
+                            max="100"
+                            className="pr-8"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">결제 금액</Label>
+                        <div className="flex items-center h-10 px-3 py-2 rounded-md border border-gray-300 bg-gray-50">
+                          <span className="font-bold text-sm">
+                            {formatCurrency(Math.round(totalAmount * installment.percentage / 100))}원
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`description-${installment.id}`} className="text-sm font-medium">
+                          결제 조건
+                        </Label>
+                        <Input
+                          id={`description-${installment.id}`}
+                          value={installment.description}
+                          onChange={(e) => updateInstallment(installment.id, 'description', e.target.value)}
+                          placeholder="결제 조건 (예: 디자인 완료 후)"
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {/* 총합 표시 */}
+              <Alert variant={getAlertVariant()} className="border-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">총 비율:</span>
+                    <Badge variant={totalPercentage === 100 ? 'default' : totalPercentage > 100 ? 'destructive' : 'secondary'} className="text-lg">
+                      {totalPercentage}%
+                    </Badge>
+                  </div>
+                  {totalPercentage !== 100 && (
+                    <p className="mt-2 text-sm">
+                      {totalPercentage > 100 
+                        ? `${totalPercentage - 100}% 초과되었습니다.` 
+                        : `${remainingPercentage}%가 부족합니다.`
+                      }
+                    </p>
+                  )}
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 결제 요약 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>결제 요약</CardTitle>
+            <CardDescription>설정된 결제 내역을 확인해주세요</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {formData.paymentMethod === 'lump-sum' ? (
+              <div className="flex justify-between items-center py-4">
+                <span className="text-lg">총 결제금액:</span>
+                <Badge variant="outline" className="text-xl font-bold">
+                  {formatCurrency(totalAmount)}원
+                </Badge>
+              </div>
+            ) : formData.paymentMethod === 'installment' ? (
+              <div className="space-y-4">
+                {installments.map((installment, index) => (
+                  <div key={installment.id} className="space-y-2">
+                    <div className="flex justify-between items-center py-3">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary">{index + 1}</Badge>
+                        <div>
+                          <span className="font-medium">{installment.name}</span>
+                          {installment.description && (
+                            <p className="text-sm text-muted-foreground">{installment.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="font-bold">
+                        {formatCurrency(Math.round(totalAmount * installment.percentage / 100))}원
+                      </Badge>
+                    </div>
+                    {index < installments.length - 1 && <Separator />}
+                  </div>
+                ))}
+                <Separator className="my-4" />
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-lg font-semibold">총 결제금액:</span>
+                  <Badge variant="outline" className="text-xl font-bold">
+                    {formatCurrency(totalAmount)}원
+                  </Badge>
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                결제 방식을 선택해주세요
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </div>
-  );
+    );
+  };
 
   const getStepTitle = () => {
     switch (currentStep) {
