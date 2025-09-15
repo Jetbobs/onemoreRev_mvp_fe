@@ -6,7 +6,10 @@
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
       "Bash(git add:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(rd:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const MultiStepProjectForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -384,12 +385,20 @@ const MultiStepProjectForm = () => {
 
       <div className="space-y-2">
         <Label htmlFor="startDate" className="mb-2.5 block">프로젝트 시작일</Label>
-        <Input
-          id="startDate"
-          type="date"
-          value={formData.startDate}
-          onChange={(e) => handleInputChange('startDate', e.target.value)}
-          onBlur={() => handleBlur('startDate')}
+        <DatePicker
+          value={formData.startDate ? new Date(formData.startDate) : undefined}
+          onChange={(date) => {
+            if (date) {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              handleInputChange('startDate', `${year}-${month}-${day}`);
+            } else {
+              handleInputChange('startDate', '');
+            }
+            handleBlur('startDate');
+          }}
+          placeholder="프로젝트 시작일을 선택하세요"
         />
         <div className="min-h-[32px]">
           {getFieldError('startDate') && (
@@ -405,12 +414,20 @@ const MultiStepProjectForm = () => {
       
       <div className="space-y-2">
         <Label htmlFor="draftDeadline" className="mb-2.5 block">초안 마감일</Label>
-        <Input
-          id="draftDeadline"
-          type="date"
-          value={formData.draftDeadline}
-          onChange={(e) => handleInputChange('draftDeadline', e.target.value)}
-          onBlur={() => handleBlur('draftDeadline')}
+        <DatePicker
+          value={formData.draftDeadline ? new Date(formData.draftDeadline) : undefined}
+          onChange={(date) => {
+            if (date) {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              handleInputChange('draftDeadline', `${year}-${month}-${day}`);
+            } else {
+              handleInputChange('draftDeadline', '');
+            }
+            handleBlur('draftDeadline');
+          }}
+          placeholder="초안 마감일을 선택하세요"
         />
         <div className="min-h-[32px]">
           {getFieldError('draftDeadline') && (
@@ -426,12 +443,20 @@ const MultiStepProjectForm = () => {
       
       <div className="space-y-2">
         <Label htmlFor="finalDeadline" className="mb-2.5 block">프로젝트 마감일</Label>
-        <Input
-          id="finalDeadline"
-          type="date"
-          value={formData.finalDeadline}
-          onChange={(e) => handleInputChange('finalDeadline', e.target.value)}
-          onBlur={() => handleBlur('finalDeadline')}
+        <DatePicker
+          value={formData.finalDeadline ? new Date(formData.finalDeadline) : undefined}
+          onChange={(date) => {
+            if (date) {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              handleInputChange('finalDeadline', `${year}-${month}-${day}`);
+            } else {
+              handleInputChange('finalDeadline', '');
+            }
+            handleBlur('finalDeadline');
+          }}
+          placeholder="프로젝트 마감일을 선택하세요"
         />
         <div className="min-h-[32px]">
           {getFieldError('finalDeadline') && (
