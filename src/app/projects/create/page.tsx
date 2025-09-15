@@ -201,20 +201,121 @@ const MultiStepProjectForm = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // 폼 스켈레톤 컴포넌트
-  const FormSkeleton = () => (
+  // 스텝별 스켈레톤 컴포넌트
+  const Step1Skeleton = () => (
     <div className="space-y-4">
-      {Array.from({ length: 7 }).map((_, index) => (
+      {/* 프로젝트명 */}
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+      
+      {/* 프로젝트 설명 - textarea */}
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+      
+      {/* 날짜 필드들 */}
+      {Array.from({ length: 3 }).map((_, index) => (
         <div key={index} className="space-y-2">
-          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-28" />
           <Skeleton className="h-10 w-full" />
-          <div className="min-h-[32px]">
-            <Skeleton className="h-4 w-48" />
-          </div>
+        </div>
+      ))}
+      
+      {/* 비용, 전화번호 */}
+      {Array.from({ length: 2 }).map((_, index) => (
+        <div key={index + 3} className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full" />
         </div>
       ))}
     </div>
   );
+
+  const Step2Skeleton = () => (
+    <div className="space-y-4">
+      {/* 수정 횟수, 추가 수정 요금 */}
+      {Array.from({ length: 2 }).map((_, index) => (
+        <div key={index} className="space-y-2">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ))}
+      
+      {/* 수정 기준 - textarea */}
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    </div>
+  );
+
+  const Step3Skeleton = () => (
+    <div className="space-y-6">
+      {/* 결제 방식 선택 카드 */}
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-4 w-48 mt-2" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* 일시불, 분할결제 카드 */}
+            {Array.from({ length: 2 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 w-full rounded-lg" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* 분할결제 설정 카드 */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-56 mt-2" />
+            </div>
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 분할결제 단계 카드들 */}
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-64 w-full rounded-lg" />
+          ))}
+          {/* 총합 표시 */}
+          <Skeleton className="h-20 w-full rounded-lg" />
+        </CardContent>
+      </Card>
+      
+      {/* 결제 요약 카드 */}
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-4 w-48 mt-2" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-32 w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const getCurrentStepSkeleton = () => {
+    switch (currentStep) {
+      case 1:
+        return <Step1Skeleton />;
+      case 2:
+        return <Step2Skeleton />;
+      case 3:
+        return <Step3Skeleton />;
+      default:
+        return <Step1Skeleton />;
+    }
+  };
 
   const renderStep1 = () => (
     <div className="space-y-4">
@@ -731,8 +832,58 @@ const MultiStepProjectForm = () => {
     <div className="min-h-screen">
       <Header />
       <div className="max-w-2xl mx-auto p-6">
-        <Card>
-          <CardHeader>
+        {isLoading ? (
+          // 로딩 중일 때 전체 스켈레톤
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <Skeleton className="h-8 w-40 mb-2" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-4 w-12" />
+              </div>
+              
+              {/* Progress Bar 스켈레톤 */}
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-4 w-8" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+
+              {/* Step Indicator 스켈레톤 */}
+              <div className="flex justify-between mt-4">
+                {[1, 2, 3].map((step) => (
+                  <div key={step} className="flex items-center">
+                    <Skeleton className="w-8 h-8 rounded-full" />
+                    <Skeleton className="ml-2 h-4 w-16" />
+                  </div>
+                ))}
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              <div className="mb-6">
+                <Skeleton className="h-6 w-48 mb-4" />
+                {getCurrentStepSkeleton()}
+              </div>
+
+              {/* Navigation Buttons 스켈레톤 */}
+              <div className="flex justify-between">
+                <Skeleton className="h-10 w-16" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-10 w-20" />
+                  <Skeleton className="h-10 w-16" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          // 로딩 완료 후 실제 콘텐츠
+          <Card>
+            <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <CardTitle className="text-2xl">프로젝트 생성</CardTitle>
@@ -773,15 +924,9 @@ const MultiStepProjectForm = () => {
                 </div>
               ))}
             </div>
-          </CardHeader>
+            </CardHeader>
 
-          <CardContent>
-            {isLoading ? (
-              <div className="mb-6">
-                <Skeleton className="h-6 w-48 mb-4" />
-                <FormSkeleton />
-              </div>
-            ) : (
+            <CardContent>
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4">{getStepTitle()}</h3>
                 
@@ -789,18 +934,8 @@ const MultiStepProjectForm = () => {
                 {currentStep === 2 && renderStep2()}
                 {currentStep === 3 && renderStep3()}
               </div>
-            )}
 
-            {/* Navigation Buttons */}
-            {isLoading ? (
-              <div className="flex justify-between">
-                <Skeleton className="h-10 w-16" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-10 w-20" />
-                  <Skeleton className="h-10 w-16" />
-                </div>
-              </div>
-            ) : (
+              {/* Navigation Buttons */}
               <div className="flex justify-between">
                 {currentStep > 1 ? (
                   <Button
@@ -841,9 +976,9 @@ const MultiStepProjectForm = () => {
                   )}
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

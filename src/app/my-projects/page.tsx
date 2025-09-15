@@ -159,7 +159,7 @@ const MyProjectsPage = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1500);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -203,72 +203,96 @@ const MyProjectsPage = () => {
       <Header />
       
       <div className="max-w-7xl mx-auto p-6">
-        {/* 페이지 헤더 */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">내 프로젝트</h1>
-              <p className="text-gray-600">진행 중인 모든 프로젝트를 관리하세요</p>
-            </div>
-            <Button 
-              onClick={() => router.push('/projects/create')}
-              className="bg-black hover:bg-gray-800 text-white cursor-pointer"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              새 프로젝트
-            </Button>
-          </div>
-        </div>
-
-
-        {/* 검색 및 필터 바 */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="프로젝트명 또는 클라이언트 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="상태 필터" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">모든 상태</SelectItem>
-              <SelectItem value="진행중">진행중</SelectItem>
-              <SelectItem value="검토중">검토중</SelectItem>
-              <SelectItem value="완료">완료</SelectItem>
-              <SelectItem value="대기">대기</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full md:w-[180px]">
-              <SelectValue placeholder="정렬 기준" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="recent">최근 업데이트순</SelectItem>
-              <SelectItem value="name">이름순</SelectItem>
-              <SelectItem value="progress">진행률순</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* 프로젝트 카드 그리드 */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <ProjectCardSkeleton key={index} />
-            ))}
-          </div>
-        ) : sortedProjects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedProjects.map((project) => (
+          <>
+            {/* 페이지 헤더 스켈레톤 */}
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <Skeleton className="h-9 w-32 mb-2" />
+                  <Skeleton className="h-5 w-64" />
+                </div>
+                <Skeleton className="h-10 w-32" />
+              </div>
+            </div>
+
+            {/* 검색 및 필터 바 스켈레톤 */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex-1">
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <Skeleton className="h-10 w-full md:w-[180px]" />
+              <Skeleton className="h-10 w-full md:w-[180px]" />
+            </div>
+
+            {/* 프로젝트 카드 그리드 스켈레톤 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <ProjectCardSkeleton key={index} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* 페이지 헤더 */}
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">내 프로젝트</h1>
+                  <p className="text-gray-600">진행 중인 모든 프로젝트를 관리하세요</p>
+                </div>
+                <Button 
+                  onClick={() => router.push('/projects/create')}
+                  className="bg-black hover:bg-gray-800 text-white cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  새 프로젝트
+                </Button>
+              </div>
+            </div>
+
+            {/* 검색 및 필터 바 */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="프로젝트명 또는 클라이언트 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="상태 필터" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">모든 상태</SelectItem>
+                  <SelectItem value="진행중">진행중</SelectItem>
+                  <SelectItem value="검토중">검토중</SelectItem>
+                  <SelectItem value="완료">완료</SelectItem>
+                  <SelectItem value="대기">대기</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="정렬 기준" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">최근 업데이트순</SelectItem>
+                  <SelectItem value="name">이름순</SelectItem>
+                  <SelectItem value="progress">진행률순</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 프로젝트 카드 그리드 */}
+            {sortedProjects.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sortedProjects.map((project) => (
               <Card key={project.id} className="hover:shadow-lg transition-shadow duration-300 bg-white">
                 <CardHeader className="pb-4">
                   <div className="flex justify-between items-start mb-2">
@@ -328,17 +352,19 @@ const MyProjectsPage = () => {
                     상세보기
                   </Button>
                 </CardFooter>
+                </Card>
+                ))}
+              </div>
+            ) : (
+              <Card className="p-12 text-center">
+                <div className="text-gray-400">
+                  <Filter className="h-12 w-12 mx-auto mb-4" />
+                  <p className="text-lg">검색 결과가 없습니다</p>
+                  <p className="text-sm mt-2">다른 검색어나 필터를 시도해보세요</p>
+                </div>
               </Card>
-            ))}
-          </div>
-        ) : (
-          <Card className="p-12 text-center">
-            <div className="text-gray-400">
-              <Filter className="h-12 w-12 mx-auto mb-4" />
-              <p className="text-lg">검색 결과가 없습니다</p>
-              <p className="text-sm mt-2">다른 검색어나 필터를 시도해보세요</p>
-            </div>
-          </Card>
+            )}
+          </>
         )}
       </div>
     </div>
