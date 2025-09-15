@@ -179,7 +179,7 @@ const ProjectDetailPage = () => {
             </div>
 
             {/* 탭 스켈레톤 */}
-            <Card>
+            <Card className="border-0 shadow-none">
               <CardContent className="p-0">
                 <div className="border-b">
                   <div className="flex space-x-8 px-6">
@@ -226,24 +226,24 @@ const ProjectDetailPage = () => {
 
             {/* 탭 콘텐츠 */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <Card>
+              <Card className="border-0 shadow-none">
                 <CardContent className="p-0">
                   <TabsList className="w-full justify-start rounded-none border-b h-auto p-0 bg-transparent">
                     <TabsTrigger 
                       value="overview" 
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3"
                     >
                       개요
                     </TabsTrigger>
                     <TabsTrigger 
                       value="drafts" 
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3"
                     >
                       시안 및 수정
                     </TabsTrigger>
                     <TabsTrigger 
                       value="files" 
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3"
                     >
                       파일 및 히스토리
                     </TabsTrigger>
