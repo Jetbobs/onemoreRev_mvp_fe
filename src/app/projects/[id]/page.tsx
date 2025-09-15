@@ -287,13 +287,7 @@ const ProjectDetailPage = () => {
                                     </div>
                                   </div>
                                   
-                                  <div className="flex items-center gap-4">
-                                    <div>
-                                      <p className="text-sm text-gray-600 mb-1">상태</p>
-                                      <Badge className={`text-white ${getStatusColor(project.status)}`}>
-                                        {project.status}
-                                      </Badge>
-                                    </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                       <p className="text-sm text-gray-600 mb-1">예산</p>
                                       <p className="font-semibold text-gray-900">{formatCurrency(project.budget)}원</p>

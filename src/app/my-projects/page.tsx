@@ -30,6 +30,7 @@ const MyProjectsPage = () => {
       startDate: "2024.03.01",
       endDate: "2024.03.30",
       revisions: 3,
+      usedRevisions: 1,
       lastUpdated: "2024.03.18",
       budget: "5,000,000원"
     },
@@ -42,6 +43,7 @@ const MyProjectsPage = () => {
       startDate: "2024.02.15",
       endDate: "2024.03.15",
       revisions: 5,
+      usedRevisions: 3,
       lastUpdated: "2024.03.12",
       budget: "8,000,000원"
     },
@@ -54,6 +56,7 @@ const MyProjectsPage = () => {
       startDate: "2024.01.20",
       endDate: "2024.02.20",
       revisions: 2,
+      usedRevisions: 2,
       lastUpdated: "2024.02.20",
       budget: "3,000,000원"
     },
@@ -66,6 +69,7 @@ const MyProjectsPage = () => {
       startDate: "2024.03.10",
       endDate: "2024.04.10",
       revisions: 1,
+      usedRevisions: 0,
       lastUpdated: "2024.03.10",
       budget: "4,500,000원"
     },
@@ -78,6 +82,7 @@ const MyProjectsPage = () => {
       startDate: "2024.02.28",
       endDate: "2024.03.28",
       revisions: 4,
+      usedRevisions: 2,
       lastUpdated: "2024.03.16",
       budget: "2,500,000원"
     },
@@ -90,6 +95,7 @@ const MyProjectsPage = () => {
       startDate: "2024.03.05",
       endDate: "2024.03.25",
       revisions: 6,
+      usedRevisions: 4,
       lastUpdated: "2024.03.17",
       budget: "3,500,000원"
     }
@@ -331,7 +337,7 @@ const MyProjectsPage = () => {
                   <div className="flex justify-between text-sm">
                     <div className="flex items-center gap-2 text-gray-600">
                       <RefreshCw className="h-4 w-4" />
-                      <span>수정 {project.revisions}회</span>
+                      <span>수정 {project.usedRevisions}/{project.revisions}회</span>
                     </div>
                     <span className="font-medium text-gray-700">{project.budget}</span>
                   </div>
