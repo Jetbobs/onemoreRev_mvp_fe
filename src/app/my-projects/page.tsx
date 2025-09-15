@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from "@/components/header"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,12 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, RefreshCw, Eye, Search, Filter, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const MyProjectsPage = () => {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
+  const [isLoading, setIsLoading] = useState(true);
 
   // 샘플 프로젝트 데이터
   const projects = [
@@ -153,6 +155,49 @@ const MyProjectsPage = () => {
     waiting: projects.filter(p => p.status === '대기').length
   };
 
+  // 로딩 시뮬레이션
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 스켈레톤 카드 컴포넌트
+  const ProjectCardSkeleton = () => (
+    <Card className="bg-white">
+      <CardHeader className="pb-4">
+        <div className="flex justify-between items-start mb-2">
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-6 w-16 rounded-full" />
+        </div>
+        <Skeleton className="h-4 w-1/2" />
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <Skeleton className="h-4 w-12" />
+            <Skeleton className="h-4 w-8" />
+          </div>
+          <Skeleton className="h-2 w-full rounded-full" />
+        </div>
+        
+        <Skeleton className="h-4 w-3/4" />
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Skeleton className="h-3 w-32" />
+      </CardContent>
+      
+      <CardFooter className="pt-4">
+        <Skeleton className="h-10 w-full" />
+      </CardFooter>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -215,7 +260,13 @@ const MyProjectsPage = () => {
         </div>
 
         {/* 프로젝트 카드 그리드 */}
-        {sortedProjects.length > 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <ProjectCardSkeleton key={index} />
+            ))}
+          </div>
+        ) : sortedProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sortedProjects.map((project) => (
               <Card key={project.id} className="hover:shadow-lg transition-shadow duration-300 bg-white">

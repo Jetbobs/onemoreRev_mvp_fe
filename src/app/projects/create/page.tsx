@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from "@/components/header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const MultiStepProjectForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     // Step 1
     projectName: '',
@@ -189,6 +191,30 @@ const MultiStepProjectForm = () => {
         return false;
     }
   };
+
+  // 로딩 시뮬레이션
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 폼 스켈레톤 컴포넌트
+  const FormSkeleton = () => (
+    <div className="space-y-4">
+      {Array.from({ length: 7 }).map((_, index) => (
+        <div key={index} className="space-y-2">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-10 w-full" />
+          <div className="min-h-[32px]">
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   const renderStep1 = () => (
     <div className="space-y-4">
@@ -750,55 +776,72 @@ const MultiStepProjectForm = () => {
           </CardHeader>
 
           <CardContent>
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-4">{getStepTitle()}</h3>
-              
-              {currentStep === 1 && renderStep1()}
-              {currentStep === 2 && renderStep2()}
-              {currentStep === 3 && renderStep3()}
-            </div>
+            {isLoading ? (
+              <div className="mb-6">
+                <Skeleton className="h-6 w-48 mb-4" />
+                <FormSkeleton />
+              </div>
+            ) : (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4">{getStepTitle()}</h3>
+                
+                {currentStep === 1 && renderStep1()}
+                {currentStep === 2 && renderStep2()}
+                {currentStep === 3 && renderStep3()}
+              </div>
+            )}
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between">
-              {currentStep > 1 ? (
-                <Button
-                  variant="outline"
-                  onClick={prevStep}
-                  className="flex items-center cursor-pointer"
-                >
-                  <ChevronLeft size={16} className="mr-1" />
-                  이전
-                </Button>
-              ) : (
-                <div></div>
-              )}
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="bg-gray-400 text-white border-gray-400 hover:bg-gray-500 hover:text-white cursor-pointer"
-                >
-                  임시저장
-                </Button>
-                {currentStep < totalSteps ? (
+            {isLoading ? (
+              <div className="flex justify-between">
+                <Skeleton className="h-10 w-16" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-10 w-20" />
+                  <Skeleton className="h-10 w-16" />
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                {currentStep > 1 ? (
                   <Button
-                    onClick={nextStep}
-                    className="flex items-center text-white bg-black hover:bg-gray-700 cursor-pointer"
+                    variant="outline"
+                    onClick={prevStep}
+                    className="flex items-center cursor-pointer"
                   >
-                    다음
-                    <ChevronRight size={16} className="ml-1" />
+                    <ChevronLeft size={16} className="mr-1" />
+                    이전
                   </Button>
                 ) : (
-                  <Button
-                    onClick={handleSubmit}
-                    className="flex items-center text-white bg-black hover:bg-gray-700 cursor-pointer"
-                  >
-                    <CheckCircle size={16} className="mr-1" />
-                    프로젝트 생성
-                  </Button>
+                  <div></div>
                 )}
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="bg-gray-400 text-white border-gray-400 hover:bg-gray-500 hover:text-white cursor-pointer"
+                  >
+                    임시저장
+                  </Button>
+                  {currentStep < totalSteps ? (
+                    <Button
+                      onClick={nextStep}
+                      className="flex items-center text-white bg-black hover:bg-gray-700 cursor-pointer"
+                    >
+                      다음
+                      <ChevronRight size={16} className="ml-1" />
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleSubmit}
+                      className="flex items-center text-white bg-black hover:bg-gray-700 cursor-pointer"
+                    >
+                      <CheckCircle size={16} className="mr-1" />
+                      프로젝트 생성
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
