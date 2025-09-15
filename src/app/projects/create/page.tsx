@@ -27,6 +27,7 @@ const MultiStepProjectForm = () => {
     finalDeadline: '',
     budget: '',
     clientPhone: '',
+    sourceFileProvision: '',
     // Step 2
     revisionCount: '',
     additionalRevisionFee: '',
@@ -50,6 +51,7 @@ const MultiStepProjectForm = () => {
     finalDeadline: false,
     budget: false,
     clientPhone: false,
+    sourceFileProvision: false,
     revisionCount: false,
     additionalRevisionFee: false,
     revisionCriteria: false,
@@ -118,6 +120,7 @@ const MultiStepProjectForm = () => {
         case 'finalDeadline': return '프로젝트 마감일을 선택해주세요.';
         case 'budget': return '비용을 입력해주세요.';
         case 'clientPhone': return '의뢰인 전화번호를 입력해주세요.';
+        case 'sourceFileProvision': return '원본파일 제공 여부를 선택해주세요.';
         case 'revisionCount': return '수정 횟수를 입력해주세요.';
         case 'additionalRevisionFee': return '추가 수정 요금을 입력해주세요.';
         case 'revisionCriteria': return '수정 기준을 입력해주세요.';
@@ -146,7 +149,7 @@ const MultiStepProjectForm = () => {
   const getCurrentStepFields = () => {
     switch (currentStep) {
       case 1:
-        return ['projectName', 'projectDescription', 'startDate', 'draftDeadline', 'finalDeadline', 'budget', 'clientPhone'];
+        return ['projectName', 'startDate', 'draftDeadline', 'finalDeadline', 'budget', 'clientPhone', 'sourceFileProvision'];
       case 2:
         return ['revisionCount', 'additionalRevisionFee', 'revisionCriteria'];
       case 3:
@@ -181,8 +184,8 @@ const MultiStepProjectForm = () => {
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.projectName && formData.projectDescription && formData.startDate && 
-               formData.draftDeadline && formData.finalDeadline && formData.budget && formData.clientPhone;
+        return formData.projectName && formData.startDate && 
+               formData.draftDeadline && formData.finalDeadline && formData.budget && formData.clientPhone && formData.sourceFileProvision;
       case 2:
         return formData.revisionCount && formData.additionalRevisionFee && formData.revisionCriteria;
       case 3:
@@ -210,12 +213,6 @@ const MultiStepProjectForm = () => {
         <Skeleton className="h-10 w-full" />
       </div>
       
-      {/* 프로젝트 설명 - textarea */}
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-      
       {/* 날짜 필드들 */}
       {Array.from({ length: 3 }).map((_, index) => (
         <div key={index} className="space-y-2">
@@ -231,6 +228,21 @@ const MultiStepProjectForm = () => {
           <Skeleton className="h-10 w-full" />
         </div>
       ))}
+      
+      {/* 원본파일 제공 라디오 버튼 */}
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-28" />
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-4 w-4 rounded-full" />
+            <Skeleton className="h-4 w-12" />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-4 w-4 rounded-full" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -340,6 +352,7 @@ const MultiStepProjectForm = () => {
         </div>
       </div>
       
+      {/* 
       <div className="space-y-2">
         <Label htmlFor="projectDescription" className="mb-2.5 block">프로젝트 설명</Label>
         <Textarea
@@ -367,6 +380,7 @@ const MultiStepProjectForm = () => {
           )}
         </div>
       </div>
+      */}
 
       <div className="space-y-2">
         <Label htmlFor="startDate" className="mb-2.5 block">프로젝트 시작일</Label>
@@ -468,6 +482,38 @@ const MultiStepProjectForm = () => {
               <AlertCircle className="h-4 w-4 flex-shrink-0 !text-red-500" />
               <AlertDescription className="text-xs leading-4 h-2.5 text-red-500">
                 {getFieldError('clientPhone')}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </div>
+      
+      <div className="space-y-2">
+        <Label className="mb-2.5 block">원본파일 제공</Label>
+        <RadioGroup 
+          value={formData.sourceFileProvision} 
+          onValueChange={(value) => {
+            handleInputChange('sourceFileProvision', value);
+            handleBlur('sourceFileProvision');
+          }}
+        >
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="yes" id="source-yes" className="border-gray-300" />
+              <Label htmlFor="source-yes" className="cursor-pointer">제공</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="no" id="source-no" className="border-gray-300" />
+              <Label htmlFor="source-no" className="cursor-pointer">미제공</Label>
+            </div>
+          </div>
+        </RadioGroup>
+        <div className="min-h-[32px]">
+          {getFieldError('sourceFileProvision') && (
+            <Alert variant="destructive" className="py-2 border-0 bg-transparent px-0 flex items-center gap-2 [&>svg]:static [&>svg]:translate-y-0 [&>svg~*]:pl-0">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 !text-red-500" />
+              <AlertDescription className="text-xs leading-4 h-2.5 text-red-500">
+                {getFieldError('sourceFileProvision')}
               </AlertDescription>
             </Alert>
           )}

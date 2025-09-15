@@ -350,7 +350,7 @@ const MyProjectsPage = () => {
                 
                 <CardFooter className="pt-4">
                   <Button 
-                    className="w-full"
+                    className="w-full cursor-pointer"
                     variant="outline"
                     onClick={() => router.push(`/projects/${project.id}`)}
                   >

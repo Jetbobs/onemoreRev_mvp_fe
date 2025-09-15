@@ -43,7 +43,7 @@ const ProjectDetailPage = () => {
     finalDeadline: "2024.03.30",
     budget: 5000000,
     clientPhone: "010-1234-5678",
-    description: "ABC 기업의 브랜드 아이덴티티를 전면 리디자인하는 프로젝트입니다. 로고, 컬러 시스템, 타이포그래피, 브랜드 가이드라인을 포함한 전체적인 브랜드 리뉴얼 작업을 진행합니다.",
+    sourceFileProvision: "yes",
     revisionCount: 3,
     usedRevisions: 1,
     additionalRevisionFee: 50000,
@@ -108,38 +108,155 @@ const ProjectDetailPage = () => {
 
   // 개요 탭 스켈레톤
   const OverviewSkeleton = () => (
-    <div className="space-y-6">
-      {/* 기본 정보 스켈레톤 */}
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-20 w-full" />
-          <div className="grid grid-cols-2 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-6 w-32" />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* 왼쪽 카드 스켈레톤 (2/3) */}
+      <Card className="lg:col-span-2 border border-gray-200">
+        <CardContent className="p-6">
+          <div className="space-y-8">
+            {/* 프로젝트 기본 정보 스켈레톤 */}
+            <div>
+              <div className="flex items-center mb-4">
+                <Skeleton className="h-5 w-5 mr-2" />
+                <Skeleton className="h-6 w-40" />
               </div>
-            ))}
+              
+              <div className="space-y-4">
+                {/* 진행률 스켈레톤 */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-8" />
+                  </div>
+                  <Skeleton className="h-2 w-full rounded-full" />
+                </div>
+
+                {/* 프로젝트명, 클라이언트 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Skeleton className="h-4 w-20 mb-1" />
+                    <Skeleton className="h-5 w-32" />
+                  </div>
+                  <div>
+                    <Skeleton className="h-4 w-16 mb-1" />
+                    <Skeleton className="h-5 w-24" />
+                  </div>
+                </div>
+
+                {/* 예산, 연락처 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Skeleton className="h-4 w-12 mb-1" />
+                    <Skeleton className="h-5 w-28" />
+                  </div>
+                  <div>
+                    <Skeleton className="h-4 w-16 mb-1" />
+                    <Skeleton className="h-5 w-32" />
+                  </div>
+                </div>
+
+                {/* 원본파일 제공 */}
+                <div>
+                  <Skeleton className="h-4 w-24 mb-1" />
+                  <Skeleton className="h-5 w-12" />
+                </div>
+              </div>
+            </div>
+
+            {/* 수정 조건 스켈레톤 */}
+            <div>
+              <div className="flex items-center mb-4">
+                <Skeleton className="h-5 w-5 mr-2" />
+                <Skeleton className="h-6 w-20" />
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i}>
+                      <Skeleton className="h-4 w-24 mb-1" />
+                      <Skeleton className="h-5 w-16" />
+                    </div>
+                  ))}
+                </div>
+                
+                <div>
+                  <Skeleton className="h-4 w-16 mb-2" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 일정 정보 스켈레톤 */}
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex justify-between items-center">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-6 w-24" />
+      {/* 오른쪽 카드 스켈레톤 (1/3) */}
+      <Card className="border border-gray-200">
+        <CardContent className="p-6">
+          <div className="space-y-8">
+            {/* 일정 정보 스켈레톤 */}
+            <div>
+              <div className="flex items-center mb-4">
+                <Skeleton className="h-5 w-5 mr-2" />
+                <Skeleton className="h-6 w-20" />
               </div>
-            ))}
+              
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="p-3 rounded-lg border border-gray-200">
+                    <Skeleton className="h-4 w-24 mb-1" />
+                    <Skeleton className="h-5 w-20 mb-1" />
+                    <div className="flex items-center mt-1">
+                      <Skeleton className="h-3 w-3 mr-1" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-8">
+              {/* 결제 정보 스켈레톤 */}
+              <div>
+                <div className="flex items-center mb-4">
+                  <Skeleton className="h-5 w-5 mr-2" />
+                  <Skeleton className="h-6 w-20" />
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="p-3 border border-gray-200 rounded-lg">
+                        <div className="flex justify-between items-start mb-1">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Skeleton className="h-4 w-12" />
+                              <Skeleton className="h-4 w-8 rounded-full" />
+                            </div>
+                            <Skeleton className="h-3 w-16 mt-1" />
+                          </div>
+                          <div className="text-right">
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-3 w-8 mt-1" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <div className="pt-2 border-t border-gray-300 mt-4">
+                      <div className="flex justify-between items-center">
+                        <Skeleton className="h-5 w-20" />
+                        <Skeleton className="h-6 w-24" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -181,12 +298,19 @@ const ProjectDetailPage = () => {
             {/* 탭 스켈레톤 */}
             <Card className="border-0 shadow-none">
               <CardContent className="p-0">
-                <div className="border-b">
-                  <div className="flex space-x-8 px-6">
+                <div>
+                  <div className="flex space-x-8 px-6 pb-0">
                     {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-12 w-32" />
+                      <div key={i} className="py-3">
+                        <Skeleton className="h-6 w-32" />
+                      </div>
                     ))}
                   </div>
+                </div>
+                
+                {/* 탭 콘텐츠 스켈레톤 */}
+                <div className="py-6">
+                  <OverviewSkeleton />
                 </div>
               </CardContent>
             </Card>
@@ -302,8 +426,10 @@ const ProjectDetailPage = () => {
                                   </div>
 
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-2">프로젝트 설명</p>
-                                    <p className="text-gray-800 leading-relaxed">{project.description}</p>
+                                    <p className="text-sm text-gray-600 mb-1">원본파일 제공</p>
+                                    <p className="font-medium text-gray-900">
+                                      {project.sourceFileProvision === "yes" ? "제공" : "미제공"}
+                                    </p>
                                   </div>
                                 </div>
                               </div>
