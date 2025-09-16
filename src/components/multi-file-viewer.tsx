@@ -102,26 +102,30 @@ export default function MultiFileViewer() {
   // 라이트박스 열기
   const openLightbox = (index: number) => {
     setCurrentImageIndex(index);
+    setImageZoom(1); // 먼저 줌 리셋
     setLightboxOpen(true);
-    setImageZoom(1);
   };
 
   // 이전/다음 이미지
   const navigateImage = (direction: string) => {
+    setImageZoom(1); // 먼저 줌 리셋
     if (direction === 'prev') {
       setCurrentImageIndex(prev => (prev - 1 + files.length) % files.length);
     } else {
       setCurrentImageIndex(prev => (prev + 1) % files.length);
     }
-    setImageZoom(1);
   };
 
-  // 이미지 줌
+  // 이미지 줌 (클릭용 - 단계별 줌)
   const toggleImageZoom = () => {
-    setImageZoom(prev => prev === 1 ? 2 : prev === 2 ? 3 : 1);
+    setImageZoom(prev => {
+      if (prev < 1.5) return 2;
+      if (prev < 2.5) return 3;
+      return 1;
+    });
   };
 
-  // 키보드 네비게이션
+  // 키보드 및 마우스 휠 이벤트
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!lightboxOpen) return;
@@ -135,8 +139,34 @@ export default function MultiFileViewer() {
       }
     };
 
+    const handleWheel = (e: WheelEvent) => {
+      if (!lightboxOpen) return;
+      
+      e.preventDefault();
+      
+      // deltaY가 음수면 위로 스크롤 (줌인), 양수면 아래로 스크롤 (줌아웃)
+      if (e.deltaY < 0) {
+        // 줌인: 0.1배씩 부드럽게 증가
+        setImageZoom(prev => {
+          const newZoom = Math.min(prev + 0.1, 3);
+          return newZoom;
+        });
+      } else {
+        // 줌아웃: 원본 크기(100%) 이하로는 줄어들지 않음
+        setImageZoom(prev => {
+          const newZoom = Math.max(prev - 0.1, 1);
+          return newZoom;
+        });
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('wheel', handleWheel);
+    };
   }, [lightboxOpen]);
 
   return (
@@ -435,20 +465,20 @@ export default function MultiFileViewer() {
 
       {/* 라이트박스 모달 */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95">
+        <DialogContent className="max-w-[98vw] max-h-[98vh] py-20 bg-black/95">
           <div className="relative w-full h-full flex items-center justify-center">
             {/* 닫기 버튼 */}
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-4 right-4 text-white hover:bg-white/20 z-50"
+              className="absolute -top-12 right-4 text-white z-50"
               onClick={() => setLightboxOpen(false)}
             >
-              <X className="h-6 w-6" />
+              <X style={{ width: '28px', height: '28px' }} />
             </Button>
 
             {/* 이미지 정보 */}
-            <div className="absolute top-4 left-4 text-white z-50">
+            <div className="absolute -top-16 left-4 text-white z-50">
               <h3 className="text-lg font-semibold mb-1">
                 {files[currentImageIndex]?.name}
               </h3>
@@ -456,7 +486,7 @@ export default function MultiFileViewer() {
                 <span>{currentImageIndex + 1} / {files.length}</span>
                 <span>{formatFileSize(files[currentImageIndex]?.size || 0)}</span>
                 <Badge variant="secondary" className="bg-white/20 text-white">
-                  {imageZoom === 1 ? '100%' : imageZoom === 2 ? '200%' : '300%'}
+                  {Math.round(imageZoom * 100)}%
                 </Badge>
               </div>
             </div>
@@ -465,41 +495,54 @@ export default function MultiFileViewer() {
             <Button
               variant="ghost"
               size="icon"
-              className="absolute left-4 text-white hover:bg-white/20 z-50"
+              className="absolute left-0 text-white z-50"
               onClick={() => navigateImage('prev')}
               disabled={files.length <= 1}
             >
-              <ChevronLeft className="h-8 w-8" />
+              <ChevronLeft style={{ width: '32px', height: '32px' }} />
             </Button>
 
             {/* 메인 이미지 */}
             <div 
-              className="relative overflow-auto max-w-full max-h-full"
+              className="relative flex items-center justify-center w-full h-full overflow-hidden"
               style={{ cursor: imageZoom > 1 ? 'move' : 'zoom-in' }}
-              onClick={toggleImageZoom}
+              onClick={(e) => {
+                // 마우스 휠 이벤트와 충돌 방지
+                e.preventDefault();
+                toggleImageZoom();
+              }}
             >
-              <img
-                src={files[currentImageIndex]?.url}
-                alt={files[currentImageIndex]?.name}
-                className="max-w-none transition-transform duration-200"
+              <div 
+                className="overflow-auto max-w-full max-h-full"
                 style={{
                   transform: `scale(${imageZoom})`,
-                  maxWidth: imageZoom === 1 ? '90vw' : 'none',
-                  maxHeight: imageZoom === 1 ? '85vh' : 'none'
+                  transformOrigin: 'center center'
                 }}
-                draggable={false}
-              />
+              >
+                <img
+                  src={files[currentImageIndex]?.url}
+                  alt={files[currentImageIndex]?.name}
+                  className="block transition-transform duration-200"
+                  style={{
+                    maxWidth: '90vw',
+                    maxHeight: '85vh',
+                    width: 'auto',
+                    height: 'auto'
+                  }}
+                  draggable={false}
+                />
+              </div>
             </div>
 
             {/* 다음 버튼 */}
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-4 text-white hover:bg-white/20 z-50"
+              className="absolute right-0 text-white z-50"
               onClick={() => navigateImage('next')}
               disabled={files.length <= 1}
             >
-              <ChevronRight className="h-8 w-8" />
+              <ChevronRight style={{ width: '32px', height: '32px' }} />
             </Button>
 
             {/* 썸네일 스트립 */}
@@ -513,8 +556,8 @@ export default function MultiFileViewer() {
                         index === currentImageIndex ? 'ring-2 ring-white' : ''
                       }`}
                       onClick={() => {
-                        setCurrentImageIndex(index);
                         setImageZoom(1);
+                        setCurrentImageIndex(index);
                       }}
                     >
                       <img
@@ -531,7 +574,7 @@ export default function MultiFileViewer() {
             {/* 컨트롤 힌트 */}
             <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 px-4 py-2 rounded">
               <span className="opacity-70">
-                방향키: 이동 | 스페이스/클릭: 확대 | ESC: 닫기
+                방향키: 이동 | 마우스휠: 줌 | 스페이스/클릭: 확대 | ESC: 닫기
               </span>
             </div>
           </div>
