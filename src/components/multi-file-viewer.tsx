@@ -303,12 +303,12 @@ export default function MultiFileViewer() {
                         <img
                           src={file.url}
                           alt={file.name}
-                          className="w-full h-auto rounded"
+                          className="w-full h-auto rounded cursor-pointer"
                           style={{
                             height: `${150 * (zoomLevel / 100)}px`,
                             objectFit: 'cover'
                           }}
-                          onClick={() => openLightbox(index)}
+                          onClick={() => toggleFileSelection(file.id)}
                         />
                         <Checkbox
                           checked={selectedFiles.has(file.id)}
@@ -390,7 +390,7 @@ export default function MultiFileViewer() {
                         src={file.url}
                         alt={file.name}
                         className="w-full rounded hover:opacity-95 transition-opacity cursor-pointer"
-                        onClick={() => openLightbox(index)}
+                        onClick={() => toggleFileSelection(file.id)}
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all rounded pointer-events-none">
                         <Checkbox
