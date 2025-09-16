@@ -10,6 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import MultiFileViewer from '@/components/multi-file-viewer';
 import { 
   Calendar, 
   Clock, 
@@ -18,10 +23,16 @@ import {
   RefreshCw, 
   FileText,
   ChevronLeft,
+  ChevronRight,
   Edit,
   User,
   CreditCard,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  CircleCheckBig,
+  MessageSquare,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 const ProjectDetailPage = () => {
@@ -30,6 +41,10 @@ const ProjectDetailPage = () => {
   const projectId = params.id;
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [draftStep, setDraftStep] = useState(1); // 시안 및 수정 탭의 Step 상태
+  const [revisionItems, setRevisionItems] = useState<any[]>([
+    { id: 1, text: '', completed: false, notes: '' }
+  ]);
 
   // 샘플 프로젝트 데이터 (실제로는 API에서 가져와야 함)
   const project = {
@@ -95,6 +110,33 @@ const ProjectDetailPage = () => {
     if (diffDays < 0) return `${Math.abs(diffDays)}일 지남`;
     if (diffDays === 0) return '오늘';
     return `${diffDays}일 남음`;
+  };
+
+  // 체크리스트 아이템 추가
+  const addRevisionItem = () => {
+    setRevisionItems([...revisionItems, {
+      id: Date.now(),
+      text: '',
+      completed: false,
+      notes: ''
+    }]);
+  };
+
+  // 체크리스트 아이템 삭제
+  const removeRevisionItem = (id: number) => {
+    setRevisionItems(revisionItems.filter(item => item.id !== id));
+  };
+
+  // 체크리스트 아이템 업데이트
+  const updateRevisionItem = (id: number, field: string, value: any) => {
+    setRevisionItems(revisionItems.map(item =>
+      item.id === id ? { ...item, [field]: value } : item
+    ));
+  };
+
+  // 완료된 항목 수 계산
+  const getCompletedCount = () => {
+    return revisionItems.filter(item => item.completed).length;
   };
 
   // 로딩 시뮬레이션
@@ -351,7 +393,7 @@ const ProjectDetailPage = () => {
             {/* 탭 콘텐츠 */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <Card className="border-0 shadow-none">
-                <CardContent className="p-0">
+                <CardContent className="p-6">
                   <TabsList className="w-full justify-start rounded-none border-b h-auto p-0 bg-transparent">
                     <TabsTrigger 
                       value="overview" 
@@ -373,7 +415,7 @@ const ProjectDetailPage = () => {
                     </TabsTrigger>
                   </TabsList>
 
-                  <div className="py-6">
+                  <div className="pt-6">
                     {/* 개요 탭 */}
                     <TabsContent value="overview" className="mt-0">
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -562,9 +604,166 @@ const ProjectDetailPage = () => {
 
                     {/* 시안 및 수정 탭 */}
                     <TabsContent value="drafts" className="mt-0">
-                      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                        <FileText className="h-12 w-12 mb-4" />
-                        <p className="text-lg">시안 및 수정 내역이 여기에 표시됩니다</p>
+                      <div className="w-full">
+                        {/* Step 네비게이션 */}
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                              <Button
+                                variant={draftStep === 1 ? "default" : "outline"}
+                                onClick={() => setDraftStep(1)}
+                                className="gap-2"
+                              >
+                                <span className="font-semibold">Step 1</span>
+                                시안 파일 관리
+                              </Button>
+                              <ChevronRight className="h-4 w-4 text-gray-400" />
+                              <Button
+                                variant={draftStep === 2 ? "default" : "outline"}
+                                onClick={() => setDraftStep(2)}
+                                className="gap-2"
+                              >
+                                <span className="font-semibold">Step 2</span>
+                                수정 체크리스트
+                              </Button>
+                            </div>
+                            {draftStep === 2 && (
+                              <Badge variant="secondary" className="text-sm">
+                                {getCompletedCount()}/{revisionItems.length} 완료
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="h-px bg-gray-200"></div>
+                        </div>
+
+                        {/* Step 1: 시안 파일 관리 */}
+                        {draftStep === 1 && (
+                          <div className="space-y-4">
+                            <div className="h-[600px] overflow-hidden rounded-lg border border-gray-200">
+                              <MultiFileViewer />
+                            </div>
+                            <div className="flex justify-end">
+                              <Button onClick={() => setDraftStep(2)}>
+                                다음 단계로
+                                <ChevronRight className="ml-2 h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Step 2: 수정 체크리스트 */}
+                        {draftStep === 2 && (
+                          <div className="space-y-6">
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="flex items-center justify-between">
+                                  <span className="flex items-center gap-2">
+                                    <CheckCircle2 className="h-5 w-5" />
+                                    수정 체크리스트
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    onClick={addRevisionItem}
+                                    variant="outline"
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    항목 추가
+                                  </Button>
+                                </CardTitle>
+                                <CardDescription>
+                                  수정이 필요한 항목들을 체크리스트로 관리하세요
+                                </CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-4">
+                                  {revisionItems.map((item, index) => (
+                                    <Card key={item.id} className="p-4 border border-gray-200">
+                                      <div className="space-y-3">
+                                        <div className="flex items-start gap-3">
+                                          <Checkbox
+                                            checked={item.completed}
+                                            onCheckedChange={(checked) =>
+                                              updateRevisionItem(item.id, 'completed', checked)
+                                            }
+                                            className="mt-1"
+                                          />
+                                          <div className="flex-1 space-y-3">
+                                            <Input
+                                              placeholder="수정 항목을 입력하세요"
+                                              value={item.text}
+                                              onChange={(e) =>
+                                                updateRevisionItem(item.id, 'text', e.target.value)
+                                              }
+                                              className={item.completed ? 'line-through opacity-50' : ''}
+                                            />
+                                            <div className="flex items-center gap-2">
+                                              <MessageSquare className="h-4 w-4 text-gray-400" />
+                                              <Textarea
+                                                placeholder="추가 메모 (선택사항)"
+                                                value={item.notes}
+                                                onChange={(e) =>
+                                                  updateRevisionItem(item.id, 'notes', e.target.value)
+                                                }
+                                                className="resize-none h-20"
+                                              />
+                                            </div>
+                                          </div>
+                                          {revisionItems.length > 1 && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => removeRevisionItem(item.id)}
+                                            >
+                                              <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </Card>
+                                  ))}
+                                </div>
+
+                                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-sm text-gray-600">진행 상황</p>
+                                      <p className="text-2xl font-bold">
+                                        {getCompletedCount()} / {revisionItems.length}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm text-gray-600">완료율</p>
+                                      <p className="text-2xl font-bold">
+                                        {revisionItems.length > 0
+                                          ? Math.round((getCompletedCount() / revisionItems.length) * 100)
+                                          : 0}%
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Progress
+                                    value={
+                                      revisionItems.length > 0
+                                        ? (getCompletedCount() / revisionItems.length) * 100
+                                        : 0
+                                    }
+                                    className="mt-3"
+                                  />
+                                </div>
+
+                                <div className="mt-4 flex justify-between">
+                                  <Button variant="outline" onClick={() => setDraftStep(1)}>
+                                    <ChevronLeft className="mr-2 h-4 w-4" />
+                                    이전 단계
+                                  </Button>
+                                  <Button>
+                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                    저장하기
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        )}
                       </div>
                     </TabsContent>
 
