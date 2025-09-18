@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { X, Upload, Download, Trash2, Eye, Grid, List, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Maximize2, Info } from 'lucide-react';
 
-export default function MultiFileViewer() {
+interface MultiFileViewerProps {
+  onSelectionChange?: (selectedFiles: any[]) => void;
+}
+
+export default function MultiFileViewer({ onSelectionChange }: MultiFileViewerProps) {
   const [files, setFiles] = useState<any[]>([]);
   const [selectedFiles, setSelectedFiles] = useState(new Set());
   const [viewMode, setViewMode] = useState('grid'); // grid, list, gallery
@@ -71,6 +75,14 @@ export default function MultiFileViewer() {
       return newSet;
     });
   };
+
+  // 선택된 파일 변경시 부모 컴포넌트에 알림
+  useEffect(() => {
+    if (onSelectionChange) {
+      const selectedFileObjects = files.filter(file => selectedFiles.has(file.id));
+      onSelectionChange(selectedFileObjects);
+    }
+  }, [selectedFiles, files, onSelectionChange]);
 
   // 전체 선택/해제
   const toggleSelectAll = () => {

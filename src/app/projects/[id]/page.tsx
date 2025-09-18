@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import MultiFileViewer from '@/components/multi-file-viewer';
+import FigmaCanvas from '@/components/figma-canvas';
 import { 
   Calendar, 
   Clock, 
@@ -45,6 +46,8 @@ const ProjectDetailPage = () => {
   const [revisionItems, setRevisionItems] = useState<any[]>([
     { id: 1, text: '', completed: false, notes: '' }
   ]);
+  const [selectedDraftImages, setSelectedDraftImages] = useState<any[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // 샘플 프로젝트 데이터 (실제로는 API에서 가져와야 함)
   const project = {
@@ -640,11 +643,14 @@ const ProjectDetailPage = () => {
                         {draftStep === 1 && (
                           <div className="space-y-4">
                             <div className="h-[600px] overflow-hidden rounded-lg border border-gray-200">
-                              <MultiFileViewer />
+                              <MultiFileViewer onSelectionChange={setSelectedDraftImages} />
                             </div>
                             <div className="flex justify-end">
-                              <Button onClick={() => setDraftStep(2)}>
-                                다음 단계로
+                              <Button 
+                                onClick={() => setDraftStep(2)}
+                                disabled={selectedDraftImages.length === 0}
+                              >
+                                다음 단계로 ({selectedDraftImages.length}개 선택됨)
                                 <ChevronRight className="ml-2 h-4 w-4" />
                               </Button>
                             </div>
@@ -654,6 +660,48 @@ const ProjectDetailPage = () => {
                         {/* Step 2: 수정 체크리스트 */}
                         {draftStep === 2 && (
                           <div className="space-y-6">
+                            {/* Figma Canvas */}
+                            <div className="h-[600px] border border-gray-200 rounded-lg overflow-hidden">
+                              {selectedDraftImages.length > 0 && (
+                                <FigmaCanvas 
+                                  key={`canvas-${selectedDraftImages[currentImageIndex]?.id}`}
+                                  image={{
+                                    id: selectedDraftImages[currentImageIndex]?.id || '',
+                                    src: selectedDraftImages[currentImageIndex]?.url || '',
+                                    name: selectedDraftImages[currentImageIndex]?.name || ''
+                                  }}
+                                />
+                              )}
+                            </div>
+                            
+                            {/* Gallery */}
+                            {selectedDraftImages.length > 1 && (
+                              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                                <h3 className="text-sm font-medium text-gray-700 mb-3">선택된 시안 ({selectedDraftImages.length}개)</h3>
+                                <div className="flex gap-3 overflow-x-auto">
+                                  {selectedDraftImages.map((image, index) => (
+                                    <div 
+                                      key={image.id}
+                                      className={`relative flex-shrink-0 cursor-pointer group ${
+                                        index === currentImageIndex ? 'ring-2 ring-blue-500' : ''
+                                      }`}
+                                      onClick={() => setCurrentImageIndex(index)}
+                                    >
+                                      <img
+                                        src={image.url}
+                                        alt={image.name}
+                                        className="w-20 h-20 object-cover rounded border"
+                                      />
+                                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded transition-all"></div>
+                                      <span className="absolute bottom-1 left-1 text-xs bg-black bg-opacity-60 text-white px-1 rounded">
+                                        {index + 1}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
                             <Card>
                               <CardHeader>
                                 <CardTitle className="flex items-center justify-between">
