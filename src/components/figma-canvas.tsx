@@ -33,20 +33,24 @@ interface FigmaCanvasProps {
 export default function FigmaCanvas({ image }: FigmaCanvasProps) {
   // 상태 관리
   const [mode, setMode] = useState('pan');
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  // 상태를 하나로 통합
+  const [canvasState, setCanvasState] = useState({
+    scale: 1,
+    translateX: 0,
+    translateY: 0
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [currentTranslate, setCurrentTranslate] = useState({ x: 0, y: 0 });
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState<any[]>([]);
   const [commentCount, setCommentCount] = useState(0);
-  const [selectedCard, setSelectedCard] = useState(null);
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [showComments, setShowComments] = useState(true);
   const [showAllBoxes, setShowAllBoxes] = useState(false);
-  const [activeCommentId, setActiveCommentId] = useState(null);
-  const [openBoxIds, setOpenBoxIds] = useState(new Set());
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [openBoxIds, setOpenBoxIds] = useState<Set<string>>(new Set());
 
   // 단일 이미지를 캔버스 중앙에 배치
   const [canvasImage] = useState(() => {
@@ -64,69 +68,93 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
     };
   });
 
-  const canvasRef = useRef(null);
-  const viewportRef = useRef(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   // 초기 위치 설정 - 이미지가 중앙에 오도록
   const centerCanvas = useCallback(() => {
     const viewport = viewportRef.current;
-    if (viewport) {
-      // 이미지 중심을 뷰포트 중앙에 맞춤
-      const viewportCenterX = viewport.offsetWidth / 2;
-      const viewportCenterY = viewport.offsetHeight / 2;
-      const imageCenterX = canvasImage.x + canvasImage.width / 2;
-      const imageCenterY = canvasImage.y + canvasImage.height / 2;
-      
-      setTranslate({
-        x: viewportCenterX - imageCenterX,
-        y: viewportCenterY - imageCenterY
-      });
-    }
+    if (!viewport) return;
+    
+    // 이미지 중심을 뷰포트 중앙에 맞춤
+    const viewportCenterX = viewport.offsetWidth / 2;
+    const viewportCenterY = viewport.offsetHeight / 2;
+    const imageCenterX = canvasImage.x + canvasImage.width / 2;
+    const imageCenterY = canvasImage.y + canvasImage.height / 2;
+    
+    setCanvasState(prev => ({
+      ...prev,
+      translateX: viewportCenterX - imageCenterX,
+      translateY: viewportCenterY - imageCenterY
+    }));
   }, [canvasImage]);
 
   useEffect(() => {
     centerCanvas();
   }, [centerCanvas]);
 
-  // 줌 기능
-  const zoom = useCallback((delta, mouseX, mouseY) => {
-    setScale(prevScale => {
-      const zoomIntensity = 0.002;
-      const zoomSpeed = 1 - delta * zoomIntensity;
-      const newScale = Math.max(0.25, Math.min(3, prevScale * zoomSpeed));
+  // 줌 함수 수정
+  const zoom = useCallback((delta: number, mouseX: number, mouseY: number) => {
+    const zoomIntensity = 0.002;
+    const zoomSpeed = 1 - delta * zoomIntensity;
+    
+    setCanvasState(prev => {
+      const newScale = Math.max(0.25, Math.min(3, prev.scale * zoomSpeed));
       
-      if (mouseX !== undefined && mouseY !== undefined) {
-        const scaleChange = newScale / prevScale;
-        setTranslate(prevTranslate => ({
-          x: prevTranslate.x - (mouseX - prevTranslate.x) * (scaleChange - 1),
-          y: prevTranslate.y - (mouseY - prevTranslate.y) * (scaleChange - 1)
-        }));
+      if (mouseX !== undefined && mouseY !== undefined && newScale !== prev.scale) {
+        // 캔버스 상의 마우스 위치
+        const canvasX = (mouseX - prev.translateX) / prev.scale;
+        const canvasY = (mouseY - prev.translateY) / prev.scale;
+        
+        // 새 스케일에서의 위치
+        const newCanvasX = canvasX * newScale;
+        const newCanvasY = canvasY * newScale;
+        
+        return {
+          scale: newScale,
+          translateX: mouseX - newCanvasX,
+          translateY: mouseY - newCanvasY
+        };
       }
       
-      return newScale;
+      return { ...prev, scale: newScale };
     });
   }, []);
 
-  const zoomButton = useCallback((zoomIn) => {
+  const zoomButton = useCallback((zoomIn: boolean) => {
     const viewport = viewportRef.current;
-    if (viewport) {
-      const centerX = viewport.offsetWidth / 2;
-      const centerY = viewport.offsetHeight / 2;
-      const delta = zoomIn ? -50 : 50;
-      zoom(delta, centerX, centerY);
-    }
+    if (!viewport) return;
+    
+    const centerX = viewport.offsetWidth / 2;
+    const centerY = viewport.offsetHeight / 2;
+    const delta = zoomIn ? -50 : 50;
+    zoom(delta, centerX, centerY);
   }, [zoom]);
 
-  const handleWheel = useCallback((e) => {
-    e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    zoom(e.deltaY, mouseX, mouseY);
+  // wheel 이벤트를 non-passive로 등록
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const wheelHandler = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = viewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      zoom(e.deltaY, mouseX, mouseY);
+    };
+
+    viewport.addEventListener('wheel', wheelHandler, { passive: false });
+    
+    return () => {
+      viewport.removeEventListener('wheel', wheelHandler);
+    };
   }, [zoom]);
+
 
   // 코멘트 추가
-  const addComment = useCallback((x, y) => {
+  const addComment = useCallback((x?: number, y?: number) => {
     const newComment = {
       id: `comment-${Date.now()}`,
       number: commentCount + 1,
@@ -161,31 +189,36 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
   }, [addComment]);
 
   // 마우스 이벤트 핸들러
-  const handleMouseDown = useCallback((e) => {
-    if (e.target.closest('button') || 
-        e.target.closest('.toolbar') || 
-        e.target.closest('.comment-pin') || 
-        e.target.closest('.comment-box') || 
-        e.target.closest('img')) return;
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || 
+        target.closest('.toolbar') || 
+        target.closest('.comment-pin') || 
+        target.closest('.comment-box') || 
+        target.closest('img')) return;
     
     if (mode === 'comment' && !isSpacePressed) {
-      const rect = viewportRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left - translate.x) / scale;
-      const y = (e.clientY - rect.top - translate.y) / scale;
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      
+      const rect = viewport.getBoundingClientRect();
+      const x = (e.clientX - rect.left - canvasState.translateX) / canvasState.scale;
+      const y = (e.clientY - rect.top - canvasState.translateY) / canvasState.scale;
       addComment(x, y);
     } else if (mode === 'pan' || isSpacePressed) {
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
-      setCurrentTranslate(translate);
+      setCurrentTranslate({ x: canvasState.translateX, y: canvasState.translateY });
     }
-  }, [mode, isSpacePressed, translate, scale, addComment]);
+  }, [mode, isSpacePressed, canvasState.translateX, canvasState.translateY, canvasState.scale, addComment]);
 
-  const handleMouseMove = useCallback((e) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isDragging) {
-      setTranslate({
-        x: currentTranslate.x + (e.clientX - dragStart.x),
-        y: currentTranslate.y + (e.clientY - dragStart.y)
-      });
+      setCanvasState(prev => ({
+        ...prev,
+        translateX: currentTranslate.x + (e.clientX - dragStart.x),
+        translateY: currentTranslate.y + (e.clientY - dragStart.y)
+      }));
     }
   }, [isDragging, dragStart, currentTranslate]);
 
@@ -194,28 +227,29 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
   }, []);
 
   // 코멘트 관리
-  const deleteComment = useCallback((commentId) => {
+  const deleteComment = useCallback((commentId: string) => {
     setComments(prev => prev.filter(c => c.id !== commentId));
   }, []);
 
-  const updateComment = useCallback((commentId, updates) => {
+  const updateComment = useCallback((commentId: string, updates: any) => {
     setComments(prev => prev.map(c => 
       c.id === commentId ? { ...c, ...updates } : c
     ));
   }, []);
 
-  const focusOnComment = useCallback((comment) => {
+  const focusOnComment = useCallback((comment: any) => {
     if (comment.hasPin && comment.x !== undefined && comment.y !== undefined) {
       const viewport = viewportRef.current;
-      if (viewport) {
-        const viewportCenterX = viewport.offsetWidth / 2;
-        const viewportCenterY = viewport.offsetHeight / 2;
-        
-        setTranslate({
-          x: viewportCenterX - comment.x * scale,
-          y: viewportCenterY - comment.y * scale
-        });
-      }
+      if (!viewport) return;
+      
+      const viewportCenterX = viewport.offsetWidth / 2;
+      const viewportCenterY = viewport.offsetHeight / 2;
+      
+      setCanvasState(prev => ({
+        ...prev,
+        translateX: viewportCenterX - comment.x * prev.scale,
+        translateY: viewportCenterY - comment.y * prev.scale
+      }));
     }
     
     setOpenBoxIds(prev => {
@@ -228,12 +262,12 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
       return newSet;
     });
     setActiveCommentId(comment.id);
-  }, [scale]);
+  }, []);
 
   // 키보드 이벤트
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === 'INPUT') return;
       
       if (e.ctrlKey || e.metaKey) {
         switch(e.key) {
@@ -249,7 +283,7 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
             break;
           case '0':
             e.preventDefault();
-            setScale(1);
+            setCanvasState(prev => ({ ...prev, scale: 1 }));
             centerCanvas();
             break;
         }
@@ -276,7 +310,7 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
       }
     };
 
-    const handleKeyUp = (e) => {
+    const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === ' ') {
         setIsSpacePressed(false);
       }
@@ -292,7 +326,7 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
   }, [zoomButton, centerCanvas]);
 
   // 시간 포맷
-  const formatTime = (date) => {
+  const formatTime = (date: Date) => {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / 60000);
@@ -305,31 +339,34 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
     return `${days}일 전`;
   };
 
-  const zoomPercentage = Math.round(scale * 100);
+  const zoomPercentage = Math.round(canvasState.scale * 100);
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-gray-900">
+    <div 
+      className="relative w-full h-full overflow-hidden bg-gray-900"
+      style={{ touchAction: 'none' }}
+    >
       <div
         ref={viewportRef}
         className={`absolute inset-0 overflow-hidden transition-all duration-300 ${
           isPanelOpen ? 'mr-80' : ''
         } ${isDragging ? 'cursor-grabbing' : mode === 'comment' && !isSpacePressed ? 'cursor-crosshair' : 'cursor-grab'}`}
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         style={{
           backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
-          backgroundSize: `${20 * scale}px ${20 * scale}px`,
-          backgroundPosition: `${translate.x}px ${translate.y}px`
+          backgroundSize: `${20 * canvasState.scale}px ${20 * canvasState.scale}px`,
+          backgroundPosition: `${canvasState.translateX}px ${canvasState.translateY}px`
         }}
       >
         <div
           ref={canvasRef}
           className="absolute w-[5000px] h-[5000px] origin-[0_0]"
           style={{
-            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`
+            transform: `translate(${canvasState.translateX}px, ${canvasState.translateY}px) scale(${canvasState.scale})`,
+            transformOrigin: '0 0'
           }}
         >
           <ImageCard
@@ -337,7 +374,7 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
             image={canvasImage}
             isSelected={selectedCard === canvasImage.id}
             onSelect={() => setSelectedCard(canvasImage.id)}
-            scale={scale}
+            scale={canvasState.scale}
             mode={mode}
             isSpacePressed={isSpacePressed}
             onAddComment={(x, y) => addComment(x, y)}
@@ -349,7 +386,7 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
               comment={comment}
               onUpdate={(updates) => updateComment(comment.id, updates)}
               onDelete={() => deleteComment(comment.id)}
-              scale={scale}
+              scale={canvasState.scale}
               isForceOpen={openBoxIds.has(comment.id) || showAllBoxes}
               onBoxToggle={(isOpen) => {
                 if (!isOpen) {
@@ -414,7 +451,7 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
         </button>
         <button
           onClick={() => {
-            setScale(1);
+            setCanvasState(prev => ({ ...prev, scale: 1 }));
             centerCanvas();
           }}
           className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all"
@@ -507,7 +544,13 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
 }
 
 // 체크리스트 아이템 컴포넌트
-function ChecklistItem({ comment, updateComment, deleteComment, focusOnComment, formatTime }) {
+function ChecklistItem({ comment, updateComment, deleteComment, focusOnComment, formatTime }: {
+  comment: any;
+  updateComment: (id: string, updates: any) => void;
+  deleteComment: (id: string) => void;
+  focusOnComment: (comment: any) => void;
+  formatTime: (date: Date) => string;
+}) {
   const [isEditingInline, setIsEditingInline] = useState(!comment.text && !comment.hasPin);
   const [inlineText, setInlineText] = useState(comment.text || '');
   
@@ -623,18 +666,29 @@ function ChecklistItem({ comment, updateComment, deleteComment, focusOnComment, 
 }
 
 // 이미지 카드 컴포넌트
-function ImageCard({ image, isSelected, onSelect, scale, mode, isSpacePressed, onAddComment }) {
+function ImageCard({ image, isSelected, onSelect, scale, mode, isSpacePressed, onAddComment }: {
+  image: any;
+  isSelected: boolean;
+  onSelect: () => void;
+  scale: number;
+  mode: string;
+  isSpacePressed: boolean;
+  onAddComment: (x: number, y: number) => void;
+}) {
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: image.x, y: image.y });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialPos, setInitialPos] = useState({ x: 0, y: 0 });
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
     
     if (mode === 'comment' && !isSpacePressed) {
       const rect = e.currentTarget.getBoundingClientRect();
-      const parentRect = e.currentTarget.parentElement.getBoundingClientRect();
+      const parentElement = e.currentTarget.parentElement;
+      if (!parentElement) return;
+      
+      const parentRect = parentElement.getBoundingClientRect();
       
       const relativeX = (e.clientX - parentRect.left) / scale;
       const relativeY = (e.clientY - parentRect.top) / scale;
@@ -652,7 +706,7 @@ function ImageCard({ image, isSelected, onSelect, scale, mode, isSpacePressed, o
   };
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
         const deltaX = (e.clientX - dragStart.x) / scale;
         const deltaY = (e.clientY - dragStart.y) / scale;
@@ -709,14 +763,21 @@ function ImageCard({ image, isSelected, onSelect, scale, mode, isSpacePressed, o
 }
 
 // 코멘트 핀 컴포넌트
-function CommentPin({ comment, onUpdate, onDelete, scale, isForceOpen, onBoxToggle }) {
+function CommentPin({ comment, onUpdate, onDelete, scale, isForceOpen, onBoxToggle }: {
+  comment: any;
+  onUpdate: (updates: any) => void;
+  onDelete: () => void;
+  scale: number;
+  isForceOpen?: boolean;
+  onBoxToggle?: (isOpen: boolean) => void;
+}) {
   const [isBoxVisible, setIsBoxVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(!comment.text);
   const [text, setText] = useState(comment.text);
   const [isHovered, setIsHovered] = useState(false);
   const [hasBeenSaved, setHasBeenSaved] = useState(!!comment.text);
   const [attachments, setAttachments] = useState(comment.attachments || []);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isForceOpen !== undefined) {
@@ -739,7 +800,7 @@ function CommentPin({ comment, onUpdate, onDelete, scale, isForceOpen, onBoxTogg
     if (onBoxToggle) onBoxToggle(false);
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       const trimmedText = text.trim();
       if (trimmedText || attachments.length > 0) {
@@ -752,9 +813,9 @@ function CommentPin({ comment, onUpdate, onDelete, scale, isForceOpen, onBoxTogg
     }
   };
 
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const newAttachments = files.map(file => ({
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const newAttachments = files.map((file: File) => ({
       id: Date.now() + Math.random(),
       name: file.name,
       type: file.type,
@@ -765,8 +826,8 @@ function CommentPin({ comment, onUpdate, onDelete, scale, isForceOpen, onBoxTogg
     setHasBeenSaved(true);
   };
 
-  const removeAttachment = (id) => {
-    setAttachments(attachments.filter(att => att.id !== id));
+  const removeAttachment = (id: number) => {
+    setAttachments(attachments.filter((att: any) => att.id !== id));
   };
 
   const pinSize = 20 / scale;
@@ -901,7 +962,7 @@ function CommentPin({ comment, onUpdate, onDelete, scale, isForceOpen, onBoxTogg
           
           {attachments.length > 0 && (
             <div className="space-y-1" style={{ marginTop: `${6 / scale}px` }}>
-              {attachments.map(att => (
+              {attachments.map((att: any) => (
                 <div 
                   key={att.id} 
                   className="flex items-center justify-between bg-white/5 rounded"
