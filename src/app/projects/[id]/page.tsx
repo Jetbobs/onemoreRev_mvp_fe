@@ -702,114 +702,12 @@ const ProjectDetailPage = () => {
                               </div>
                             )}
                             
-                            <Card>
-                              <CardHeader>
-                                <CardTitle className="flex items-center justify-between">
-                                  <span className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-5 w-5" />
-                                    수정 체크리스트
-                                  </span>
-                                  <Button
-                                    size="sm"
-                                    onClick={addRevisionItem}
-                                    variant="outline"
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    항목 추가
-                                  </Button>
-                                </CardTitle>
-                                <CardDescription>
-                                  수정이 필요한 항목들을 체크리스트로 관리하세요
-                                </CardDescription>
-                              </CardHeader>
-                              <CardContent>
-                                <div className="space-y-4">
-                                  {revisionItems.map((item, index) => (
-                                    <Card key={item.id} className="p-4 border border-gray-200">
-                                      <div className="space-y-3">
-                                        <div className="flex items-start gap-3">
-                                          <Checkbox
-                                            checked={item.completed}
-                                            onCheckedChange={(checked) =>
-                                              updateRevisionItem(item.id, 'completed', checked)
-                                            }
-                                            className="mt-1"
-                                          />
-                                          <div className="flex-1 space-y-3">
-                                            <Input
-                                              placeholder="수정 항목을 입력하세요"
-                                              value={item.text}
-                                              onChange={(e) =>
-                                                updateRevisionItem(item.id, 'text', e.target.value)
-                                              }
-                                              className={item.completed ? 'line-through opacity-50' : ''}
-                                            />
-                                            <div className="flex items-center gap-2">
-                                              <MessageSquare className="h-4 w-4 text-gray-400" />
-                                              <Textarea
-                                                placeholder="추가 메모 (선택사항)"
-                                                value={item.notes}
-                                                onChange={(e) =>
-                                                  updateRevisionItem(item.id, 'notes', e.target.value)
-                                                }
-                                                className="resize-none h-20"
-                                              />
-                                            </div>
-                                          </div>
-                                          {revisionItems.length > 1 && (
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => removeRevisionItem(item.id)}
-                                            >
-                                              <Trash2 className="h-4 w-4 text-red-500" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </Card>
-                                  ))}
-                                </div>
-
-                                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <p className="text-sm text-gray-600">진행 상황</p>
-                                      <p className="text-2xl font-bold">
-                                        {getCompletedCount()} / {revisionItems.length}
-                                      </p>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm text-gray-600">완료율</p>
-                                      <p className="text-2xl font-bold">
-                                        {revisionItems.length > 0
-                                          ? Math.round((getCompletedCount() / revisionItems.length) * 100)
-                                          : 0}%
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <Progress
-                                    value={
-                                      revisionItems.length > 0
-                                        ? (getCompletedCount() / revisionItems.length) * 100
-                                        : 0
-                                    }
-                                    className="mt-3"
-                                  />
-                                </div>
-
-                                <div className="mt-4 flex justify-between">
-                                  <Button variant="outline" onClick={() => setDraftStep(1)}>
-                                    <ChevronLeft className="mr-2 h-4 w-4" />
-                                    이전 단계
-                                  </Button>
-                                  <Button>
-                                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                                    저장하기
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
+                            <div className="flex justify-start">
+                              <Button variant="outline" onClick={() => setDraftStep(1)}>
+                                <ChevronLeft className="mr-2 h-4 w-4" />
+                                이전 단계
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>
