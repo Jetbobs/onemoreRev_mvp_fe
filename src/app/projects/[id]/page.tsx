@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import MultiFileViewer from '@/components/multi-file-viewer';
 import FigmaCanvas from '@/components/figma-canvas';
+import FileHistoryLayout from '@/components/file-history-layout';
 import { 
   Calendar, 
   Clock, 
@@ -715,10 +716,7 @@ const ProjectDetailPage = () => {
 
                     {/* 파일 및 히스토리 탭 */}
                     <TabsContent value="files" className="mt-0">
-                      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                        <FileText className="h-12 w-12 mb-4" />
-                        <p className="text-lg">파일 및 히스토리가 여기에 표시됩니다</p>
-                      </div>
+                      <FileHistoryLayout />
                     </TabsContent>
                   </div>
                 </CardContent>
