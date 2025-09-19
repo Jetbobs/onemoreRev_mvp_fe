@@ -223,10 +223,6 @@ const FileHistoryLayout = () => {
               <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
                 <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </button>
-              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
-                <Trash2 className="w-4 h-4" />
-                모두 삭제
-              </button>
             </div>
           </div>
         </div>
@@ -241,20 +237,20 @@ const FileHistoryLayout = () => {
               <div
                 key={item.id}
                 className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group"
-                onMouseEnter={() => setHoveredItem(item.id)}
-                onMouseLeave={() => setHoveredItem(null)}
               >
                 <div className="flex gap-4 p-4">
                   {/* Thumbnail Image */}
-                  <div className="relative flex-shrink-0">
+                  <div className="relative flex-shrink-0 self-center overflow-hidden rounded-lg">
                     <img
                       src={item.thumbnail}
                       alt="썸네일"
-                      className="w-80 h-44 object-cover rounded-lg cursor-pointer"
+                      className="w-80 h-44 object-cover cursor-pointer hover:scale-105 transition-transform duration-300 ease-out"
+                      onMouseEnter={() => setHoveredItem(item.id)}
+                      onMouseLeave={() => setHoveredItem(null)}
                     />
                     {/* Hover Overlay */}
                     {hoveredItem === item.id && (
-                      <div className="absolute inset-0 bg-black bg-opacity-40 rounded-lg transition-opacity pointer-events-none"></div>
+                      <div className="absolute inset-0 bg-black bg-opacity-20 transition-opacity duration-300 pointer-events-none"></div>
                     )}
                   </div>
 
@@ -274,21 +270,12 @@ const FileHistoryLayout = () => {
                         <div className="flex items-center justify-between mb-2">
                           <button
                             onClick={() => handleSelectAllFiles(item.id)}
-                            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-2"
+                            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
                           >
-                            <div className={`w-4 h-4 rounded-full border-2 ${
-                              item.files.every(f => f.selected) 
-                                ? 'bg-blue-600 border-blue-600' 
-                                : 'border-gray-300 dark:border-gray-600'
-                            } flex items-center justify-center`}>
-                              {item.files.every(f => f.selected) && (
-                                <Check className="w-3 h-3 text-white" />
-                              )}
-                            </div>
-                            <span>전체 선택</span>
+                            {item.files.every(f => f.selected) ? '전체 선택 해제' : '전체 선택'}
                           </button>
-                          <button className="p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                            <Download className="w-4 h-4" />
+                          <button className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline">
+                            다운로드
                           </button>
                         </div>
                         
@@ -317,7 +304,7 @@ const FileHistoryLayout = () => {
                                 {file.size}
                               </span>
                               {/* Download Button */}
-                              <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors">
                                 <Download className="w-3 h-3 text-gray-600 dark:text-gray-400" />
                               </button>
                             </div>
