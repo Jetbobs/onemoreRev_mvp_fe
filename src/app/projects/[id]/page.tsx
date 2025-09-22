@@ -49,6 +49,12 @@ const ProjectDetailPage = () => {
   ]);
   const [selectedDraftImages, setSelectedDraftImages] = useState<any[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [installments, setInstallments] = useState([
+    { name: "계약금", percentage: 30, amount: 1500000, status: "완료", date: "2024.03.01" },
+    { name: "중간금", percentage: 40, amount: 2000000, status: "대기", date: "2024.03.15" },
+    { name: "잔금", percentage: 30, amount: 1500000, status: "대기", date: "2024.03.30" }
+  ]);
+  const [userRole, setUserRole] = useState<'client' | 'designer'>('client'); // 사용자 역할 상태
 
   // 샘플 프로젝트 데이터 (실제로는 API에서 가져와야 함)
   const project = {
@@ -67,12 +73,7 @@ const ProjectDetailPage = () => {
     usedRevisions: 1,
     additionalRevisionFee: 50000,
     revisionCriteria: "디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.",
-    paymentMethod: "installment",
-    installments: [
-      { name: "계약금", percentage: 30, amount: 1500000, status: "완료", date: "2024.03.01" },
-      { name: "중간금", percentage: 40, amount: 2000000, status: "대기", date: "2024.03.15" },
-      { name: "잔금", percentage: 30, amount: 1500000, status: "대기", date: "2024.03.30" }
-    ]
+    paymentMethod: "installment"
   };
 
   const getStatusColor = (status: string) => {
@@ -141,6 +142,13 @@ const ProjectDetailPage = () => {
   // 완료된 항목 수 계산
   const getCompletedCount = () => {
     return revisionItems.filter(item => item.completed).length;
+  };
+
+  // 결제 상태 변경 함수
+  const togglePaymentStatus = (index: number) => {
+    const newInstallments = [...installments];
+    newInstallments[index].status = newInstallments[index].status === '완료' ? '대기' : '완료';
+    setInstallments(newInstallments);
   };
 
   // 로딩 시뮬레이션
@@ -568,17 +576,24 @@ const ProjectDetailPage = () => {
                                   
                                   {project.paymentMethod === 'installment' && (
                                     <div className="space-y-2">
-                                      {project.installments.map((installment, index) => (
+                                      {installments.map((installment, index) => (
                                         <div key={index} className="p-3 border border-gray-200 rounded-lg">
                                           <div className="flex justify-between items-start mb-1">
-                                            <div>
-                                              <div className="flex items-center gap-2">
-                                                <span className="font-medium text-sm">{installment.name}</span>
-                                                <Badge className={`text-xs ${getPaymentStatusColor(installment.status)}`}>
-                                                  {installment.status}
-                                                </Badge>
+                                            <div className="flex items-center gap-3">
+                                              <Checkbox
+                                                checked={installment.status === '완료'}
+                                                onCheckedChange={() => togglePaymentStatus(index)}
+                                                className="mt-1 rounded-full border-gray-300"
+                                              />
+                                              <div>
+                                                <div className="flex items-center gap-2">
+                                                  <span className="font-medium text-sm">{installment.name}</span>
+                                                  <Badge className={`text-xs ${getPaymentStatusColor(installment.status)}`}>
+                                                    {installment.status}
+                                                  </Badge>
+                                                </div>
+                                                <p className="text-xs text-gray-500">{installment.date}</p>
                                               </div>
-                                              <p className="text-xs text-gray-500">{installment.date}</p>
                                             </div>
                                             <div className="text-right">
                                               <p className="font-semibold text-sm">{formatCurrency(installment.amount)}원</p>
@@ -632,9 +647,30 @@ const ProjectDetailPage = () => {
                               </Button>
                             </div>
                             {draftStep === 2 && (
-                              <Badge variant="secondary" className="text-sm">
-                                {getCompletedCount()}/{revisionItems.length} 완료
-                              </Badge>
+                              <div className="flex items-center gap-4">
+                                <Badge variant="secondary" className="text-sm">
+                                  {getCompletedCount()}/{revisionItems.length} 완료
+                                </Badge>
+                                
+                                {/* 역할 전환 버튼 (테스트용) */}
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span className="text-gray-600">역할:</span>
+                                  <Button
+                                    size="sm"
+                                    variant={userRole === 'client' ? 'default' : 'outline'}
+                                    onClick={() => setUserRole('client')}
+                                  >
+                                    클라이언트
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={userRole === 'designer' ? 'default' : 'outline'}
+                                    onClick={() => setUserRole('designer')}
+                                  >
+                                    디자이너
+                                  </Button>
+                                </div>
+                              </div>
                             )}
                           </div>
                           <div className="h-px bg-gray-200"></div>
@@ -703,11 +739,30 @@ const ProjectDetailPage = () => {
                               </div>
                             )}
                             
-                            <div className="flex justify-start">
+                            <div className="flex justify-between">
                               <Button variant="outline" onClick={() => setDraftStep(1)}>
                                 <ChevronLeft className="mr-2 h-4 w-4" />
                                 이전 단계
                               </Button>
+                              
+                              {/* 역할별 버튼 */}
+                              {userRole === 'client' ? (
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => console.log('코멘트 제출')}
+                                >
+                                  <MessageSquare className="h-4 w-4 mr-2" />
+                                  코멘트 제출
+                                </Button>
+                              ) : (
+                                <Button 
+                                  variant="outline"
+                                  onClick={() => console.log('수정 완료')}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  수정 완료
+                                </Button>
+                              )}
                             </div>
                           </div>
                         )}
