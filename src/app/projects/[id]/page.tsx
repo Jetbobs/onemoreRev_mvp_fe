@@ -14,6 +14,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import MultiFileViewer from '@/components/multi-file-viewer';
 import FigmaCanvas from '@/components/figma-canvas';
 import FileHistoryLayout from '@/components/file-history-layout';
@@ -55,9 +65,18 @@ const ProjectDetailPage = () => {
     { name: "잔금", percentage: 30, amount: 1500000, status: "대기", date: "2024.03.30" }
   ]);
   const [userRole, setUserRole] = useState<'client' | 'designer'>('client'); // 사용자 역할 상태
+  const [completedFiles, setCompletedFiles] = useState<any[]>([]); // 완료된 파일 목록
+  const [canvasComments, setCanvasComments] = useState<{[key: string]: number}>({}); // 각 캔버스별 코멘트 개수
+  const [alertDialog, setAlertDialog] = useState({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+    showCancel: true
+  });
 
   // 샘플 프로젝트 데이터 (실제로는 API에서 가져와야 함)
-  const project = {
+  const [project, setProject] = useState({
     id: projectId,
     name: "브랜드 리디자인",
     client: "ABC 기업",
@@ -74,7 +93,7 @@ const ProjectDetailPage = () => {
     additionalRevisionFee: 50000,
     revisionCriteria: "디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.",
     paymentMethod: "installment"
-  };
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -149,6 +168,113 @@ const ProjectDetailPage = () => {
     const newInstallments = [...installments];
     newInstallments[index].status = newInstallments[index].status === '완료' ? '대기' : '완료';
     setInstallments(newInstallments);
+  };
+
+  // 수정 완료 처리 함수
+  const handleRevisionComplete = () => {
+    if (selectedDraftImages.length > 0 && currentImageIndex < selectedDraftImages.length) {
+      const currentImage = selectedDraftImages[currentImageIndex];
+      
+      // 완료된 파일 추가
+      const newCompletedFile = {
+        ...currentImage,
+        completedDate: new Date().toLocaleDateString('ko-KR'),
+        completedBy: '디자이너',
+        status: '완료'
+      };
+      
+      setCompletedFiles([...completedFiles, newCompletedFile]);
+      
+      // 현재 이미지를 선택 목록에서 제거
+      const updatedImages = selectedDraftImages.filter((_, index) => index !== currentImageIndex);
+      setSelectedDraftImages(updatedImages);
+      
+      // 인덱스 조정
+      if (currentImageIndex >= updatedImages.length && updatedImages.length > 0) {
+        setCurrentImageIndex(updatedImages.length - 1);
+      }
+      
+      // 모든 이미지가 완료되면 파일 탭으로 이동
+      if (updatedImages.length === 0) {
+        setActiveTab('files');
+        alert('모든 수정이 완료되었습니다. 파일 및 히스토리 탭으로 이동합니다.');
+      } else {
+        alert('수정이 완료되었습니다.');
+      }
+    }
+  };
+
+  // 코멘트 제출 처리 함수
+  const handleCommentSubmit = () => {
+    // 테스트를 위한 임시 코멘트 개수 (실제로는 FigmaCanvas에서 가져와야 함)
+    const currentImageId = selectedDraftImages[currentImageIndex]?.id || '';
+    const commentCount = canvasComments[currentImageId] || 2; // 테스트용: 기본값 2
+
+    if (commentCount === 0) {
+      setAlertDialog({
+        isOpen: true,
+        title: '코멘트 필요',
+        description: '코멘트를 먼저 작성해주세요.',
+        onConfirm: () => setAlertDialog(prev => ({ ...prev, isOpen: false })),
+        showCancel: false
+      });
+      return;
+    }
+
+    // 코멘트가 있는 캔버스 개수 계산
+    const canvasesWithComments = selectedDraftImages.filter(img => {
+      const count = canvasComments[img.id] || 0;
+      return count > 0;
+    }).length || 1; // 최소 1개로 설정 (테스트용)
+
+    const remainingRevisions = project.revisionCount - project.usedRevisions;
+
+    if (remainingRevisions < canvasesWithComments) {
+      setAlertDialog({
+        isOpen: true,
+        title: '추가 비용 발생 가능',
+        description: `남은 수정 횟수(${remainingRevisions}회)보다 많은 캔버스(${canvasesWithComments}개)에 코멘트가 있습니다. 추가 수정 비용이 발생할 수 있습니다. 계속하시겠습니까?`,
+        onConfirm: () => {
+          processCommentSubmit(canvasesWithComments);
+          setAlertDialog(prev => ({ ...prev, isOpen: false }));
+        },
+        showCancel: true
+      });
+    } else {
+      setAlertDialog({
+        isOpen: true,
+        title: '수정 횟수 차감 확인',
+        description: `코멘트가 있는 캔버스 ${canvasesWithComments}개에 대해 수정 횟수가 차감됩니다.\n남은 수정 횟수: ${remainingRevisions}회 → ${remainingRevisions - canvasesWithComments}회\n제출하시겠습니까?`,
+        onConfirm: () => {
+          processCommentSubmit(canvasesWithComments);
+          setAlertDialog(prev => ({ ...prev, isOpen: false }));
+        },
+        showCancel: true
+      });
+    }
+  };
+
+  const processCommentSubmit = (canvasesWithComments: number) => {
+    // 수정 횟수 차감
+    setProject(prev => ({
+      ...prev,
+      usedRevisions: prev.usedRevisions + canvasesWithComments
+    }));
+
+    setAlertDialog({
+      isOpen: true,
+      title: '제출 완료',
+      description: `코멘트가 제출되었습니다.\n수정 횟수 ${canvasesWithComments}회가 차감되었습니다.`,
+      onConfirm: () => setAlertDialog(prev => ({ ...prev, isOpen: false })),
+      showCancel: false
+    });
+    
+    // 실제로는 서버에 코멘트 데이터 전송
+    console.log('코멘트 제출:', {
+      imageId: selectedDraftImages[currentImageIndex]?.id || '',
+      canvasesWithComments,
+      newUsedRevisions: project.usedRevisions + canvasesWithComments
+    });
   };
 
   // 로딩 시뮬레이션
@@ -745,24 +871,25 @@ const ProjectDetailPage = () => {
                                 이전 단계
                               </Button>
                               
-                              {/* 역할별 버튼 */}
-                              {userRole === 'client' ? (
+                              {/* 역할별 버튼 - 테스트를 위해 둘 다 표시 */}
+                              <div className="flex gap-2">
+                                {userRole === 'client' && (
+                                  <Button 
+                                    variant="outline"
+                                    onClick={handleCommentSubmit}
+                                  >
+                                    <MessageSquare className="h-4 w-4 mr-2" />
+                                    코멘트 제출
+                                  </Button>
+                                )}
                                 <Button 
                                   variant="outline"
-                                  onClick={() => console.log('코멘트 제출')}
-                                >
-                                  <MessageSquare className="h-4 w-4 mr-2" />
-                                  코멘트 제출
-                                </Button>
-                              ) : (
-                                <Button 
-                                  variant="outline"
-                                  onClick={() => console.log('수정 완료')}
+                                  onClick={handleRevisionComplete}
                                 >
                                   <CheckCircle2 className="h-4 w-4 mr-2" />
                                   수정 완료
                                 </Button>
-                              )}
+                              </div>
                             </div>
                           </div>
                         )}
@@ -771,7 +898,7 @@ const ProjectDetailPage = () => {
 
                     {/* 파일 및 히스토리 탭 */}
                     <TabsContent value="files" className="mt-0">
-                      <FileHistoryLayout />
+                      <FileHistoryLayout completedFiles={completedFiles} />
                     </TabsContent>
                   </div>
                 </CardContent>
@@ -780,6 +907,28 @@ const ProjectDetailPage = () => {
           </>
         )}
       </div>
+
+      {/* Alert Dialog */}
+      <AlertDialog open={alertDialog.isOpen} onOpenChange={(open) => setAlertDialog(prev => ({ ...prev, isOpen: open }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertDialog.title}</AlertDialogTitle>
+            <AlertDialogDescription className="whitespace-pre-line">
+              {alertDialog.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {alertDialog.showCancel && (
+              <AlertDialogCancel onClick={() => setAlertDialog(prev => ({ ...prev, isOpen: false }))}>
+                취소
+              </AlertDialogCancel>
+            )}
+            <AlertDialogAction onClick={alertDialog.onConfirm}>
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

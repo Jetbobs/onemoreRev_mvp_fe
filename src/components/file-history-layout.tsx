@@ -1,8 +1,33 @@
 import React, { useState } from 'react';
 import { MoreVertical, X, Trash2, Search, Filter, Folder, File, FileImage, Download, Calendar, HardDrive, Eye, LayoutGrid, LayoutList, Check } from 'lucide-react';
 
-const FileHistoryLayout = () => {
+interface FileHistoryLayoutProps {
+  completedFiles?: any[];
+}
+
+const FileHistoryLayout: React.FC<FileHistoryLayoutProps> = ({ completedFiles = [] }) => {
+  // 완료된 파일들을 기존 items 형식으로 변환
+  const convertCompletedFilesToItems = () => {
+    if (completedFiles.length === 0) return [];
+    
+    return [{
+      id: Date.now(),
+      thumbnail: completedFiles[0]?.url || "https://picsum.photos/400/300?random=new",
+      date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
+      files: completedFiles.map((file, index) => ({
+        id: `completed-${file.id || index}`,
+        name: file.name || `완료된_파일_${index + 1}.jpeg`,
+        type: file.type || "jpeg",
+        size: file.size || "2.0 MB",
+        selected: false
+      })),
+      totalSize: `${completedFiles.length * 2} MB`,
+      lastAccessed: "방금 전"
+    }];
+  };
+
   const [items, setItems] = useState([
+    ...convertCompletedFilesToItems(),
     {
       id: 1,
       thumbnail: "https://picsum.photos/400/300?random=1",
@@ -103,6 +128,13 @@ const FileHistoryLayout = () => {
       lastAccessed: "2주 전"
     }
   ]);
+
+  // completedFiles가 변경될 때마다 items 업데이트
+  React.useEffect(() => {
+    if (completedFiles && completedFiles.length > 0) {
+      setItems(prev => [...convertCompletedFilesToItems(), ...prev.slice(convertCompletedFilesToItems().length)]);
+    }
+  }, [completedFiles]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredItem, setHoveredItem] = useState(null);
