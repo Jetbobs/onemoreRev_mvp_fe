@@ -403,7 +403,7 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
       </div>
 
       {/* 툴바 */}
-      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-[1002] flex items-center gap-2 bg-gray-800/95 backdrop-blur-sm rounded-xl p-3 shadow-lg">
+      <div className="absolute top-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-gray-800/95 backdrop-blur-sm rounded-xl p-3 shadow-lg">
         <button
           onClick={() => setMode('pan')}
           className={`px-4 py-2 rounded-lg transition-all ${
@@ -463,14 +463,14 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
       {/* 코멘트 패널 토글 */}
       <button
         onClick={() => setIsPanelOpen(!isPanelOpen)}
-        className="absolute right-5 top-5 z-[1003] bg-gray-800/95 backdrop-blur-sm text-white px-4 py-2.5 rounded-lg hover:bg-gray-700/95 transition-all shadow-lg flex items-center gap-2"
+        className="absolute right-5 top-5 z-40 bg-gray-800/95 backdrop-blur-sm text-white px-4 py-2.5 rounded-lg hover:bg-gray-700/95 transition-all shadow-lg flex items-center gap-2"
       >
         {isPanelOpen ? <X size={18} /> : <MessageCircle size={18} />}
         {isPanelOpen ? '닫기' : `코멘트 ${comments.length > 0 ? `(${comments.length})` : ''}`}
       </button>
 
       {/* 코멘트 패널 */}
-      <div className={`absolute right-0 top-0 w-80 h-full bg-gray-900/98 backdrop-blur-xl border-l border-white/10 z-[1004] flex flex-col transform transition-transform duration-300 ${
+      <div className={`absolute right-0 top-0 w-80 h-full bg-gray-900/98 backdrop-blur-xl border-l border-white/10 z-40 flex flex-col transform transition-transform duration-300 ${
         isPanelOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
         <div className="p-5 border-b border-white/10">
@@ -531,7 +531,7 @@ export default function FigmaCanvas({ image }: FigmaCanvasProps) {
       </div>
 
       {/* 도움말 */}
-      <div className="absolute bottom-5 left-5 bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 text-gray-400 text-xs max-w-[250px] z-[1002]">
+      <div className="absolute bottom-5 left-5 bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 text-gray-400 text-xs max-w-[250px] z-40">
         <strong className="text-gray-300">단축키:</strong><br />
         V - 이동 모드 | C - 코멘트 모드<br />
         H - 핀 표시/숨기기 | B - 모든 박스 열기/닫기<br />

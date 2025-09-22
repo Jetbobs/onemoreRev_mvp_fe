@@ -9,7 +9,8 @@
       "Bash(curl:*)",
       "Bash(npm uninstall:*)",
       "Bash(rd:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Read(//c/Users/share/OneDrive/Desktop/onemoreRev_mvp/**)"
     ],
     "deny": [],
     "ask": []
