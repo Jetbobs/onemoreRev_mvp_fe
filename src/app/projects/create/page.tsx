@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Plus, Trash2, Calendar, Phone, CreditCard, FileText, CheckCircle2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DatePicker } from '@/components/ui/date-picker';
 
@@ -59,7 +59,7 @@ const MultiStepProjectForm = () => {
     paymentMethod: false
   });
 
-  const totalSteps = 3;
+  const totalSteps = 4;
   const progressPercentage = (currentStep / totalSteps) * 100;
 
   const handleInputChange = (field: string, value: string) => {
@@ -178,7 +178,8 @@ const MultiStepProjectForm = () => {
     // 유효성 검사 통과시에만 제출
     if (isStepValid()) {
       console.log('프로젝트 생성:', formData);
-      alert('프로젝트가 성공적으로 생성되었습니다!');
+      // 완료 단계로 이동
+      setCurrentStep(4);
     }
   };
 
@@ -623,6 +624,141 @@ const MultiStepProjectForm = () => {
     </div>
   );
 
+  const renderStep4 = () => {
+    const totalAmount = parseInt(formData.budget) || 0;
+    
+    return (
+      <div className="space-y-6">
+        {/* 완료 메시지 */}
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-bold mb-2">프로젝트 생성 완료!</h2>
+          <p className="text-muted-foreground">프로젝트가 성공적으로 생성되었습니다.</p>
+        </div>
+
+        {/* 프로젝트 요약 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>프로젝트 요약</CardTitle>
+            <CardDescription>생성된 프로젝트 정보를 확인해주세요</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* 기본 정보 */}
+            <div>
+              <h4 className="font-semibold mb-3 text-sm text-muted-foreground">기본 정보</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">프로젝트명</span>
+                  <span className="font-medium">{formData.projectName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">의뢰인 연락처</span>
+                  <span className="font-medium">{formData.clientPhone}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">총 예산</span>
+                  <span className="font-medium">{formatCurrency(totalAmount)}원</span>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* 일정 */}
+            <div>
+              <h4 className="font-semibold mb-3 text-sm text-muted-foreground">프로젝트 일정</h4>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">시작일</span>
+                      <span className="font-medium">{formData.startDate}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">초안 마감</span>
+                      <span className="font-medium">{formData.draftDeadline}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">최종 마감</span>
+                      <span className="font-medium">{formData.finalDeadline}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* 수정 조건 */}
+            <div>
+              <h4 className="font-semibold mb-3 text-sm text-muted-foreground">수정 조건</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">수정 횟수</span>
+                  <span className="font-medium">{formData.revisionCount}회</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">추가 수정 요금</span>
+                  <span className="font-medium">{formatCurrency(parseInt(formData.additionalRevisionFee) || 0)}원</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">원본파일 제공</span>
+                  <span className="font-medium">{formData.sourceFileProvision === 'yes' ? '제공' : '미제공'}</span>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* 결제 정보 */}
+            <div>
+              <h4 className="font-semibold mb-3 text-sm text-muted-foreground">결제 정보</h4>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <span className="text-sm text-muted-foreground">결제 방식</span>
+                    <p className="font-medium">{formData.paymentMethod === 'lump-sum' ? '일시불' : '분할결제'}</p>
+                  </div>
+                </div>
+                {formData.paymentMethod === 'installment' && (
+                  <div className="mt-3 space-y-2 pl-7">
+                    {installments.map((installment, index) => (
+                      <div key={installment.id} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{installment.name}</span>
+                        <span>{formatCurrency(Math.round(totalAmount * installment.percentage / 100))}원 ({installment.percentage}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 버튼 그룹 */}
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" size="lg" className="px-6">
+            대시보드로 이동
+          </Button>
+          <Button size="lg" className="px-6 bg-black text-white hover:bg-gray-700">
+            프로젝트 보기
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   const renderStep3 = () => {
     const totalAmount = parseInt(formData.budget) || 0;
     
@@ -886,6 +1022,7 @@ const MultiStepProjectForm = () => {
       case 1: return '프로젝트 기본 정보';
       case 2: return '수정 조건';
       case 3: return '결제 방식';
+      case 4: return '프로젝트 생성 완료';
       default: return '';
     }
   };
@@ -895,6 +1032,7 @@ const MultiStepProjectForm = () => {
       case 1: return '프로젝트의 기본 정보를 입력해주세요';
       case 2: return '수정 횟수와 관련 조건을 설정해주세요';
       case 3: return '결제 방식을 선택하고 최종 확인해주세요';
+      case 4: return '프로젝트가 성공적으로 생성되었습니다';
       default: return '';
     }
   };
@@ -926,7 +1064,7 @@ const MultiStepProjectForm = () => {
 
               {/* Step Indicator 스켈레톤 */}
               <div className="flex justify-between mt-4">
-                {[1, 2, 3].map((step) => (
+                {[1, 2, 3, 4].map((step) => (
                   <div key={step} className="flex items-center">
                     <Skeleton className="w-8 h-8 rounded-full" />
                     <Skeleton className="ml-2 h-4 w-16" />
@@ -978,7 +1116,7 @@ const MultiStepProjectForm = () => {
 
             {/* Step Indicator */}
             <div className="flex justify-between mt-4">
-              {[1, 2, 3].map((step) => (
+              {[1, 2, 3, 4].map((step) => (
                 <div key={step} className="flex items-center">
                   <div className={`
                     w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
@@ -990,7 +1128,7 @@ const MultiStepProjectForm = () => {
                     {currentStep > step ? <CheckCircle size={16} /> : step}
                   </div>
                   <span className={`ml-2 text-sm ${currentStep >= step ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
-                    {step === 1 ? '기본정보' : step === 2 ? '수정조건' : '결제방식'}
+                    {step === 1 ? '기본정보' : step === 2 ? '수정조건' : step === 3 ? '결제방식' : '완료'}
                   </span>
                 </div>
               ))}
@@ -1004,9 +1142,11 @@ const MultiStepProjectForm = () => {
                 {currentStep === 1 && renderStep1()}
                 {currentStep === 2 && renderStep2()}
                 {currentStep === 3 && renderStep3()}
+                {currentStep === 4 && renderStep4()}
               </div>
 
               {/* Navigation Buttons */}
+              {currentStep < 4 ? (
               <div className="flex justify-between">
                 {currentStep > 1 ? (
                   <Button
@@ -1047,6 +1187,7 @@ const MultiStepProjectForm = () => {
                   )}
                 </div>
               </div>
+              ) : null}
             </CardContent>
           </Card>
         )}
