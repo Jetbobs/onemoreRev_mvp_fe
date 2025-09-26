@@ -9,8 +9,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
+import { authApi } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 
 export function SignupForm() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     role: '',
     name: '',
@@ -128,11 +131,29 @@ export function SignupForm() {
     
     try {
       console.log('회원가입 시도:', formData)
-      // API 호출 등...
-      await new Promise(resolve => setTimeout(resolve, 2000)) // 시뮬레이션
-      alert('회원가입이 완료되었습니다!')
-    } catch (error) {
+      
+      // API 호출
+      const registerData = {
+        role: formData.role.toUpperCase(), // DESIGNER, CLIENT
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone
+      }
+      
+      const response = await authApi.register(registerData)
+      console.log('회원가입 성공:', response)
+      
+      alert('회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.')
+      
+      // 로그인 페이지로 리다이렉트
+      router.push('/login')
+      
+    } catch (error: any) {
       console.error('회원가입 에러:', error)
+      
+      const errorMessage = error.data?.message || error.message || '회원가입 중 오류가 발생했습니다.'
+      alert(errorMessage)
     } finally {
       setIsLoading(false)
     }

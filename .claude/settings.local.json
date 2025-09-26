@@ -10,7 +10,8 @@
       "Bash(npm uninstall:*)",
       "Bash(rd:*)",
       "Bash(powershell:*)",
-      "Read(//c/Users/share/OneDrive/Desktop/onemoreRev_mvp/**)"
+      "Read(//c/Users/share/OneDrive/Desktop/onemoreRev_mvp/**)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
