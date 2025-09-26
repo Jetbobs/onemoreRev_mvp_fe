@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertCircle, ChevronLeft, ChevronRight, MessageSquare, Plus } from 'lucide-react'
+import { AlertCircle, ChevronLeft, ChevronRight, MessageSquare, Plus, Maximize2 } from 'lucide-react'
+import { ImageModal } from '@/components/image-modal'
 import { projectApi } from '@/lib/api'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -90,6 +91,23 @@ function RevisionPageContent() {
   // 파일 업로드 관련 상태
   const [trackFiles, setTrackFiles] = useState<{ [key: string]: File }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // 이미지 확대 모달 상태
+  const [modalImage, setModalImage] = useState<{
+    isOpen: boolean
+    trackId: string
+    trackName: string
+    imageUrl: string
+    storedFilename: string
+    originalFilename: string
+  }>({
+    isOpen: false,
+    trackId: '',
+    trackName: '',
+    imageUrl: '',
+    storedFilename: '',
+    originalFilename: ''
+  })
   
   const projectId = searchParams.get('projectId')
   const revNo = searchParams.get('revNo')
@@ -182,6 +200,39 @@ function RevisionPageContent() {
 
   const isReviewable = () => {
     return !!code && revision?.status === 'submitted'
+  }
+
+  // 모달 관련 함수들
+  const openImageModal = (track: Track) => {
+    if (!track.latestFile) return
+    
+    setModalImage({
+      isOpen: true,
+      trackId: track.id,
+      trackName: track.name || track.title || `트랙 ${track.id}`,
+      imageUrl: `${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${track.latestFile.storedFilename}`,
+      storedFilename: track.latestFile.storedFilename,
+      originalFilename: track.latestFile.originalFilename
+    })
+  }
+
+  const closeImageModal = () => {
+    setModalImage(prev => ({ ...prev, isOpen: false }))
+  }
+
+  const handleModalAddPin = (trackId: string, normalX: number, normalY: number, comment: string) => {
+    const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    const newFeedback: Feedback = {
+      id: feedbackId,
+      trackId,
+      normalX,
+      normalY,
+      content: comment,
+      createdAt: new Date().toISOString()
+    }
+    
+    setFeedbacks(prev => [...prev, newFeedback])
   }
 
   // 피드백 관련 함수들
@@ -719,6 +770,20 @@ function RevisionPageContent() {
                                     onClick={() => handlePinClick(pin)}
                                   />
                                 ))}
+                                
+                                {/* 확대 버튼 */}
+                                {track.latestFile && (
+                                  <button
+                                    className="absolute top-2 right-2 p-2 bg-white/80 rounded-full hover:bg-white transition-all hover:scale-110 z-10"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openImageModal(track)
+                                    }}
+                                    title="이미지 확대"
+                                  >
+                                    <Maximize2 className="h-4 w-4 text-gray-600" />
+                                  </button>
+                                )}
                               </div>
                               <div className="text-sm text-gray-600 space-y-1">
                                 {trackFiles[track.id] ? (
@@ -996,6 +1061,26 @@ function RevisionPageContent() {
             />
           </div>
         )}
+
+        {/* 이미지 확대 모달 */}
+        <ImageModal
+          isOpen={modalImage.isOpen}
+          onClose={closeImageModal}
+          trackId={modalImage.trackId}
+          trackName={modalImage.trackName}
+          imageUrl={modalImage.imageUrl}
+          storedFilename={modalImage.storedFilename}
+          originalFilename={modalImage.originalFilename}
+          pins={feedbacks.filter(f => f.trackId === modalImage.trackId).map(f => ({
+            id: f.id,
+            normalX: f.normalX,
+            normalY: f.normalY,
+            comment: f.content,
+            createdAt: f.createdAt
+          }))}
+          onAddPin={handleModalAddPin}
+          isReviewable={isReviewable()}
+        />
       </div>
     </div>
   )
