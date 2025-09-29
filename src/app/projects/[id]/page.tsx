@@ -27,6 +27,7 @@ import {
 import MultiFileViewer from '@/components/multi-file-viewer';
 import FigmaCanvas from '@/components/figma-canvas';
 import FileHistoryLayout from '@/components/file-history-layout';
+import { calculateDateProgress, formatDate } from '@/utils/dateProgress';
 import { 
   Calendar, 
   Clock, 
@@ -46,6 +47,31 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
+
+// 백엔드 API 응답 타입 정의
+interface BackendProject {
+  id: number;
+  name: string;
+  description?: string;
+  authorId: number;
+  authorEmail?: string;
+  startDate?: Date;
+  deadline?: Date;
+  totalPrice: number;
+  modLimit: number;
+  createdAt: Date;
+  updatedAt: Date;
+  revisionCount: number;
+  lastRevision?: {
+    id: number;
+    revNo: number;
+    description?: string;
+    status: string;
+    createdAt: Date;
+  };
+  tracks: any[];
+  guests: any[];
+}
 
 const ProjectDetailPage = () => {
   const params = useParams();
@@ -75,11 +101,11 @@ const ProjectDetailPage = () => {
     showCancel: true
   });
 
-  // 샘플 프로젝트 데이터 (실제로는 API에서 가져와야 함)
-  const [project, setProject] = useState({
+  // 프로젝트 데이터
+  const [project, setProject] = useState<any>({
     id: projectId,
-    name: "브랜드 리디자인",
-    client: "ABC 기업",
+    name: "프로젝트명",
+    authorEmail: "user@example.com",
     status: "진행중",
     progress: 75,
     startDate: "2024.03.01",
@@ -277,14 +303,87 @@ const ProjectDetailPage = () => {
     });
   };
 
-  // 로딩 시뮬레이션
+  // 프로젝트 상세 데이터 로드
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    loadProjectDetail();
+  }, [projectId]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  async function loadProjectDetail() {
+    try {
+      setIsLoading(true);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/project/${projectId}`,
+        { credentials: 'include' }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('프로젝트 상세 데이터:', data);
+
+      if (data.success && data.project) {
+        const backendProject: BackendProject = data.project;
+
+        // 백엔드 데이터를 프론트엔드 형식으로 변환
+        setProject({
+          id: backendProject.id,
+          name: backendProject.name,
+          description: backendProject.description,
+          authorEmail: backendProject.authorEmail || 'author@example.com',
+          status: getProjectStatus(backendProject),
+          progress: calculateDateProgress(backendProject.startDate, backendProject.deadline),
+          startDate: formatDate(backendProject.startDate) || '미정',
+          draftDeadline: '미정', // 백엔드에 없는 필드
+          finalDeadline: formatDate(backendProject.deadline) || '미정',
+          budget: backendProject.totalPrice || 0,
+          clientPhone: '연락처 미등록', // 백엔드에 없는 필드
+          sourceFileProvision: 'no', // 백엔드에 없는 필드
+          revisionCount: backendProject.modLimit || 0,
+          usedRevisions: backendProject.revisionCount || 0,
+          additionalRevisionFee: 50000, // 고정값 또는 백엔드에서 받아오기
+          revisionCriteria: '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
+          paymentMethod: 'installment',
+          tracks: backendProject.tracks || [],
+          guests: backendProject.guests || []
+        });
+      } else {
+        throw new Error(data.message || '프로젝트 정보를 불러올 수 없습니다.');
+      }
+    } catch (err: any) {
+      console.error('프로젝트 상세 로드 실패:', err);
+      // API 실패 시 기본 데이터 사용
+      setProject({
+        id: projectId,
+        name: "샘플 프로젝트",
+        authorEmail: "sample@example.com",
+        status: "진행중",
+        progress: 75,
+        startDate: "2024.03.01",
+        draftDeadline: "2024.03.15",
+        finalDeadline: "2024.03.30",
+        budget: 5000000,
+        clientPhone: "010-1234-5678",
+        sourceFileProvision: "yes",
+        revisionCount: 3,
+        usedRevisions: 1,
+        additionalRevisionFee: 50000,
+        revisionCriteria: "디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.",
+        paymentMethod: "installment"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const getProjectStatus = (project: BackendProject) => {
+    if (project.lastRevision?.status === 'reviewed') return '검토됨';
+    if (project.lastRevision?.status === 'submitted') return '제출됨';
+    if (project.revisionCount > 0) return '진행중';
+    return '준비중';
+  }
 
   // 개요 탭 스켈레톤
   const OverviewSkeleton = () => (
@@ -504,7 +603,7 @@ const ProjectDetailPage = () => {
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">{project.name}</h1>
                   <p className="text-gray-600 flex items-center">
                     <User className="h-4 w-4 mr-2" />
-                    {project.client}
+                    {project.authorEmail}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -583,10 +682,10 @@ const ProjectDetailPage = () => {
                                       <p className="font-medium text-gray-900">{project.name}</p>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-gray-600 mb-1">클라이언트</p>
+                                      <p className="text-sm text-gray-600 mb-1">작성자</p>
                                       <p className="font-medium text-gray-900 flex items-center">
                                         <User className="h-4 w-4 mr-2" />
-                                        {project.client}
+                                        {project.authorEmail}
                                       </p>
                                     </div>
                                   </div>
