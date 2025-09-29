@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { ChevronLeft, ChevronRight, MessageSquare, Plus, Maximize2 } from 'lucide-react'
 import { ImageModal } from '@/components/image-modal'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
 interface Track {
@@ -64,9 +65,12 @@ interface RevisionDraftsProps {
   revNo: string
   code?: string
   revision: Revision | null
+  activeTab?: string
 }
 
-export function RevisionDrafts({ projectId, revNo, code, revision }: RevisionDraftsProps) {
+export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = 'drafts' }: RevisionDraftsProps) {
+  const router = useRouter()
+
   // 피드백 시스템 상태
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([])
   const [pins, setPins] = useState<Pin[]>([])
@@ -467,9 +471,13 @@ export function RevisionDrafts({ projectId, revNo, code, revision }: RevisionDra
           onClick={() => {
             const prevRevNo = parseInt(revNo!) - 1
             if (prevRevNo >= 1) {
-              let url = `/revision-new?projectId=${projectId}&revNo=${prevRevNo}`
-              if (code) url += `&code=${code}`
-              window.location.href = url
+              const params = new URLSearchParams()
+              params.set('projectId', projectId)
+              params.set('revNo', prevRevNo.toString())
+              if (code) params.set('code', code)
+              params.set('tab', activeTab)
+
+              router.push(`/revision-new?${params.toString()}`)
             }
           }}
           disabled={parseInt(revNo!) <= 1}
@@ -482,9 +490,13 @@ export function RevisionDrafts({ projectId, revNo, code, revision }: RevisionDra
           variant="outline"
           onClick={() => {
             const nextRevNo = parseInt(revNo!) + 1
-            let url = `/revision-new?projectId=${projectId}&revNo=${nextRevNo}`
-            if (code) url += `&code=${code}`
-            window.location.href = url
+            const params = new URLSearchParams()
+            params.set('projectId', projectId)
+            params.set('revNo', nextRevNo.toString())
+            if (code) params.set('code', code)
+            params.set('tab', activeTab)
+
+            router.push(`/revision-new?${params.toString()}`)
           }}
           disabled={revision.isLast}
         >
@@ -714,7 +726,14 @@ export function RevisionDrafts({ projectId, revNo, code, revision }: RevisionDra
                       console.log('피드백 완료 API 응답:', result)
 
                       alert('디자이너에게 내용을 전달하였습니다')
-                      window.location.href = `/revision-new?projectId=${projectId}&revNo=${revNo}`
+
+                      const params = new URLSearchParams()
+                      params.set('projectId', projectId)
+                      params.set('revNo', revNo)
+                      if (code) params.set('code', code)
+                      params.set('tab', activeTab)
+
+                      router.push(`/revision-new?${params.toString()}`)
 
                     } catch (error) {
                       console.error('피드백 완료 처리 실패:', error)

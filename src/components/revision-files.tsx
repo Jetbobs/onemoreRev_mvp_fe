@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Eye, Download, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import FileHistoryLayout from '@/components/file-history-layout'
 
 interface RevisionFilesProps {
@@ -16,6 +17,8 @@ interface RevisionFilesProps {
 }
 
 export function RevisionFiles({ projectId, revNo, completedFiles, revision, activeTab = 'files', code }: RevisionFilesProps) {
+  const router = useRouter()
+
   const handleCreateNextRevision = async () => {
     if (!revision) {
       alert('리비전 정보를 불러오지 못했습니다.')
@@ -49,7 +52,7 @@ export function RevisionFiles({ projectId, revNo, completedFiles, revision, acti
       if (code) params.set('code', code)
       params.set('tab', activeTab)
 
-      window.location.href = `/revision-new?${params.toString()}`
+      router.push(`/revision-new?${params.toString()}`)
 
     } catch (error) {
       console.error('다음 리비전 생성 실패:', error)
@@ -64,7 +67,7 @@ export function RevisionFiles({ projectId, revNo, completedFiles, revision, acti
     if (code) params.set('code', code)
     params.set('tab', activeTab)
 
-    window.location.href = `/revision-new?${params.toString()}`
+    router.push(`/revision-new?${params.toString()}`)
   }
 
   const handlePreviousRevision = () => {

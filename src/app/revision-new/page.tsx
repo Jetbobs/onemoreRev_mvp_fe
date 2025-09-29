@@ -51,7 +51,7 @@ function RevisionPageContent() {
   const [completedFiles, setCompletedFiles] = useState<any[]>([])
 
   const projectId = searchParams.get('projectId')
-  const revNo = searchParams.get('revNo')
+  const revNo = searchParams.get('revNo') || '1' // revNo가 없으면 기본값 1
   const code = searchParams.get('code')
   const tabParam = searchParams.get('tab')
 
@@ -68,6 +68,20 @@ function RevisionPageContent() {
       setActiveTab(tabParam)
     }
   }, [tabParam])
+
+  // 초기 로드 시 URL 정규화
+  useEffect(() => {
+    if (projectId && !searchParams.get('revNo')) {
+      // revNo가 없으면 URL에 추가
+      const params = new URLSearchParams()
+      params.set('projectId', projectId)
+      params.set('revNo', '1')
+      if (code) params.set('code', code)
+      if (tabParam) params.set('tab', tabParam)
+
+      router.replace(`/revision-new?${params.toString()}`, { scroll: false })
+    }
+  }, [projectId, searchParams, code, tabParam, router])
 
   useEffect(() => {
     if (projectId) {
@@ -216,15 +230,14 @@ function RevisionPageContent() {
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab)
 
-    // URL 업데이트
+    // URL 업데이트 (shallow routing으로 페이지 리로드 방지)
     const params = new URLSearchParams()
     if (projectId) params.set('projectId', projectId)
     if (revNo) params.set('revNo', revNo)
     if (code) params.set('code', code)
     params.set('tab', newTab)
 
-    const newUrl = `${window.location.pathname}?${params.toString()}`
-    window.history.replaceState({}, '', newUrl)
+    router.replace(`/revision-new?${params.toString()}`, { scroll: false })
   }
 
   if (isLoading) {
@@ -419,6 +432,7 @@ function RevisionPageContent() {
                     revNo={revNo || '1'}
                     code={code || undefined}
                     revision={revision}
+                    activeTab={activeTab}
                   />
                 </TabsContent>
 
