@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Header } from "@/components/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,9 +11,6 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,9 +21,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import MultiFileViewer from '@/components/multi-file-viewer';
-import FigmaCanvas from '@/components/figma-canvas';
 import FileHistoryLayout from '@/components/file-history-layout';
+import { RevisionContent } from '@/components/revision-content';
 import { calculateDateProgress, formatDate } from '@/utils/dateProgress';
 import { 
   Calendar, 
@@ -36,16 +32,10 @@ import {
   RefreshCw, 
   FileText,
   ChevronLeft,
-  ChevronRight,
   Edit,
   User,
   CreditCard,
-  AlertCircle,
-  CheckCircle2,
-  CircleCheckBig,
-  MessageSquare,
-  Plus,
-  Trash2
+  AlertCircle
 } from 'lucide-react';
 
 // 백엔드 API 응답 타입 정의
@@ -76,23 +66,18 @@ interface BackendProject {
 const ProjectDetailPage = () => {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const projectId = params.id;
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
-  const [draftStep, setDraftStep] = useState(1); // 시안 및 수정 탭의 Step 상태
-  const [revisionItems, setRevisionItems] = useState<any[]>([
-    { id: 1, text: '', completed: false, notes: '' }
-  ]);
-  const [selectedDraftImages, setSelectedDraftImages] = useState<any[]>([]);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentRevNo, setCurrentRevNo] = useState(1); // 현재 리비전 번호
+  const [guestCode, setGuestCode] = useState<string | undefined>(searchParams.get('code') || undefined); // 게스트 코드
   const [installments, setInstallments] = useState([
     { name: "계약금", percentage: 30, amount: 1500000, status: "완료", date: "2024.03.01" },
     { name: "중간금", percentage: 40, amount: 2000000, status: "대기", date: "2024.03.15" },
     { name: "잔금", percentage: 30, amount: 1500000, status: "대기", date: "2024.03.30" }
   ]);
-  const [userRole, setUserRole] = useState<'client' | 'designer'>('client'); // 사용자 역할 상태
-  const [completedFiles, setCompletedFiles] = useState<any[]>([]); // 완료된 파일 목록
-  const [canvasComments, setCanvasComments] = useState<{[key: string]: number}>({}); // 각 캔버스별 코멘트 개수
+  const [completedFiles] = useState<any[]>([]); // 완료된 파일 목록
   const [alertDialog, setAlertDialog] = useState({
     isOpen: false,
     title: '',
@@ -162,32 +147,6 @@ const ProjectDetailPage = () => {
     return `${diffDays}일 남음`;
   };
 
-  // 체크리스트 아이템 추가
-  const addRevisionItem = () => {
-    setRevisionItems([...revisionItems, {
-      id: Date.now(),
-      text: '',
-      completed: false,
-      notes: ''
-    }]);
-  };
-
-  // 체크리스트 아이템 삭제
-  const removeRevisionItem = (id: number) => {
-    setRevisionItems(revisionItems.filter(item => item.id !== id));
-  };
-
-  // 체크리스트 아이템 업데이트
-  const updateRevisionItem = (id: number, field: string, value: any) => {
-    setRevisionItems(revisionItems.map(item =>
-      item.id === id ? { ...item, [field]: value } : item
-    ));
-  };
-
-  // 완료된 항목 수 계산
-  const getCompletedCount = () => {
-    return revisionItems.filter(item => item.completed).length;
-  };
 
   // 결제 상태 변경 함수
   const togglePaymentStatus = (index: number) => {
@@ -196,112 +155,17 @@ const ProjectDetailPage = () => {
     setInstallments(newInstallments);
   };
 
-  // 수정 완료 처리 함수
-  const handleRevisionComplete = () => {
-    if (selectedDraftImages.length > 0 && currentImageIndex < selectedDraftImages.length) {
-      const currentImage = selectedDraftImages[currentImageIndex];
-      
-      // 완료된 파일 추가
-      const newCompletedFile = {
-        ...currentImage,
-        completedDate: new Date().toLocaleDateString('ko-KR'),
-        completedBy: '디자이너',
-        status: '완료'
-      };
-      
-      setCompletedFiles([...completedFiles, newCompletedFile]);
-      
-      // 현재 이미지를 선택 목록에서 제거
-      const updatedImages = selectedDraftImages.filter((_, index) => index !== currentImageIndex);
-      setSelectedDraftImages(updatedImages);
-      
-      // 인덱스 조정
-      if (currentImageIndex >= updatedImages.length && updatedImages.length > 0) {
-        setCurrentImageIndex(updatedImages.length - 1);
-      }
-      
-      // 모든 이미지가 완료되면 파일 탭으로 이동
-      if (updatedImages.length === 0) {
-        setActiveTab('files');
-        alert('모든 수정이 완료되었습니다. 파일 및 히스토리 탭으로 이동합니다.');
-      } else {
-        alert('수정이 완료되었습니다.');
-      }
-    }
+  // 리비전 변경 함수
+  const handleRevisionChange = (revNo: number) => {
+    setCurrentRevNo(revNo);
   };
 
-  // 코멘트 제출 처리 함수
-  const handleCommentSubmit = () => {
-    // 테스트를 위한 임시 코멘트 개수 (실제로는 FigmaCanvas에서 가져와야 함)
-    const currentImageId = selectedDraftImages[currentImageIndex]?.id || '';
-    const commentCount = canvasComments[currentImageId] || 2; // 테스트용: 기본값 2
+  // URL 파라미터 변경 감지
+  useEffect(() => {
+    const codeParam = searchParams.get('code');
+    setGuestCode(codeParam || undefined);
+  }, [searchParams]);
 
-    if (commentCount === 0) {
-      setAlertDialog({
-        isOpen: true,
-        title: '코멘트 필요',
-        description: '코멘트를 먼저 작성해주세요.',
-        onConfirm: () => setAlertDialog(prev => ({ ...prev, isOpen: false })),
-        showCancel: false
-      });
-      return;
-    }
-
-    // 코멘트가 있는 캔버스 개수 계산
-    const canvasesWithComments = selectedDraftImages.filter(img => {
-      const count = canvasComments[img.id] || 0;
-      return count > 0;
-    }).length || 1; // 최소 1개로 설정 (테스트용)
-
-    const remainingRevisions = project.revisionCount - project.usedRevisions;
-
-    if (remainingRevisions < canvasesWithComments) {
-      setAlertDialog({
-        isOpen: true,
-        title: '추가 비용 발생 가능',
-        description: `남은 수정 횟수(${remainingRevisions}회)보다 많은 캔버스(${canvasesWithComments}개)에 코멘트가 있습니다. 추가 수정 비용이 발생할 수 있습니다. 계속하시겠습니까?`,
-        onConfirm: () => {
-          processCommentSubmit(canvasesWithComments);
-          setAlertDialog(prev => ({ ...prev, isOpen: false }));
-        },
-        showCancel: true
-      });
-    } else {
-      setAlertDialog({
-        isOpen: true,
-        title: '수정 횟수 차감 확인',
-        description: `코멘트가 있는 캔버스 ${canvasesWithComments}개에 대해 수정 횟수가 차감됩니다.\n남은 수정 횟수: ${remainingRevisions}회 → ${remainingRevisions - canvasesWithComments}회\n제출하시겠습니까?`,
-        onConfirm: () => {
-          processCommentSubmit(canvasesWithComments);
-          setAlertDialog(prev => ({ ...prev, isOpen: false }));
-        },
-        showCancel: true
-      });
-    }
-  };
-
-  const processCommentSubmit = (canvasesWithComments: number) => {
-    // 수정 횟수 차감
-    setProject(prev => ({
-      ...prev,
-      usedRevisions: prev.usedRevisions + canvasesWithComments
-    }));
-
-    setAlertDialog({
-      isOpen: true,
-      title: '제출 완료',
-      description: `코멘트가 제출되었습니다.\n수정 횟수 ${canvasesWithComments}회가 차감되었습니다.`,
-      onConfirm: () => setAlertDialog(prev => ({ ...prev, isOpen: false })),
-      showCancel: false
-    });
-    
-    // 실제로는 서버에 코멘트 데이터 전송
-    console.log('코멘트 제출:', {
-      imageId: selectedDraftImages[currentImageIndex]?.id || '',
-      canvasesWithComments,
-      newUsedRevisions: project.usedRevisions + canvasesWithComments
-    });
-  };
 
   // 프로젝트 상세 데이터 로드
   useEffect(() => {
@@ -849,148 +713,16 @@ const ProjectDetailPage = () => {
                     {/* 시안 및 수정 탭 */}
                     <TabsContent value="drafts" className="mt-0">
                       <div className="w-full">
-                        {/* Step 네비게이션 */}
-                        <div className="mb-3">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-4">
-                              <Button
-                                variant={draftStep === 1 ? "default" : "outline"}
-                                onClick={() => setDraftStep(1)}
-                                className="gap-2"
-                              >
-                                <span className="font-semibold">Step 1</span>
-                                시안 파일 관리
-                              </Button>
-                              <ChevronRight className="h-4 w-4 text-gray-400" />
-                              <Button
-                                variant={draftStep === 2 ? "default" : "outline"}
-                                onClick={() => setDraftStep(2)}
-                                className="gap-2"
-                              >
-                                <span className="font-semibold">Step 2</span>
-                                수정 체크리스트
-                              </Button>
-                            </div>
-                            {draftStep === 2 && (
-                              <div className="flex items-center gap-4">
-                                <Badge variant="secondary" className="text-sm">
-                                  {getCompletedCount()}/{revisionItems.length} 완료
-                                </Badge>
-                                
-                                {/* 역할 전환 버튼 (테스트용) */}
-                                <div className="flex items-center gap-2 text-sm">
-                                  <span className="text-gray-600">역할:</span>
-                                  <Button
-                                    size="sm"
-                                    variant={userRole === 'client' ? 'default' : 'outline'}
-                                    onClick={() => setUserRole('client')}
-                                  >
-                                    클라이언트
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant={userRole === 'designer' ? 'default' : 'outline'}
-                                    onClick={() => setUserRole('designer')}
-                                  >
-                                    디자이너
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          <div className="h-px bg-gray-200"></div>
-                        </div>
-
-                        {/* Step 1: 시안 파일 관리 */}
-                        {draftStep === 1 && (
-                          <div className="space-y-4">
-                            <div className="h-[600px] overflow-hidden rounded-lg border border-gray-200">
-                              <MultiFileViewer onSelectionChange={setSelectedDraftImages} />
-                            </div>
-                            <div className="flex justify-end">
-                              <Button 
-                                onClick={() => setDraftStep(2)}
-                                disabled={selectedDraftImages.length === 0}
-                              >
-                                다음 단계로 ({selectedDraftImages.length}개 선택됨)
-                                <ChevronRight className="ml-2 h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Step 2: 수정 체크리스트 */}
-                        {draftStep === 2 && (
-                          <div className="space-y-6">
-                            {/* Figma Canvas */}
-                            <div className="h-[600px] border border-gray-200 rounded-lg overflow-hidden">
-                              {selectedDraftImages.length > 0 && (
-                                <FigmaCanvas 
-                                  key={`canvas-${selectedDraftImages[currentImageIndex]?.id}`}
-                                  image={{
-                                    id: selectedDraftImages[currentImageIndex]?.id || '',
-                                    src: selectedDraftImages[currentImageIndex]?.url || '',
-                                    name: selectedDraftImages[currentImageIndex]?.name || ''
-                                  }}
-                                />
-                              )}
-                            </div>
-                            
-                            {/* Gallery */}
-                            {selectedDraftImages.length > 1 && (
-                              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                                <h3 className="text-sm font-medium text-gray-700 mb-3">선택된 시안 ({selectedDraftImages.length}개)</h3>
-                                <div className="flex gap-3 overflow-x-auto">
-                                  {selectedDraftImages.map((image, index) => (
-                                    <div 
-                                      key={image.id}
-                                      className={`relative flex-shrink-0 cursor-pointer group ${
-                                        index === currentImageIndex ? 'ring-2 ring-blue-500' : ''
-                                      }`}
-                                      onClick={() => setCurrentImageIndex(index)}
-                                    >
-                                      <img
-                                        src={image.url}
-                                        alt={image.name}
-                                        className="w-20 h-20 object-cover rounded border"
-                                      />
-                                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded transition-all"></div>
-                                      <span className="absolute bottom-1 left-1 text-xs bg-black bg-opacity-60 text-white px-1 rounded">
-                                        {index + 1}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            
-                            <div className="flex justify-between">
-                              <Button variant="outline" onClick={() => setDraftStep(1)}>
-                                <ChevronLeft className="mr-2 h-4 w-4" />
-                                이전 단계
-                              </Button>
-                              
-                              {/* 역할별 버튼 - 테스트를 위해 둘 다 표시 */}
-                              <div className="flex gap-2">
-                                {userRole === 'client' && (
-                                  <Button 
-                                    variant="outline"
-                                    onClick={handleCommentSubmit}
-                                  >
-                                    <MessageSquare className="h-4 w-4 mr-2" />
-                                    코멘트 제출
-                                  </Button>
-                                )}
-                                <Button 
-                                  variant="outline"
-                                  onClick={handleRevisionComplete}
-                                >
-                                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                                  수정 완료
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
+                        {!isLoading && (
+                          <RevisionContent
+                            projectId={projectId as string}
+                            revNo={currentRevNo.toString()}
+                            code={guestCode}
+                            showNavigation={true}
+                            showHeader={false}
+                            className=""
+                            onRevisionChange={handleRevisionChange}
+                          />
                         )}
                       </div>
                     </TabsContent>

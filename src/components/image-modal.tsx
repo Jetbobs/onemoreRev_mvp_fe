@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { X, Download } from 'lucide-react'
-import Image from 'next/image'
 
 interface ModalPin {
   id: string
@@ -119,15 +118,21 @@ export function ImageModal({
           {/* 이미지 영역 */}
           <div className="flex-1 relative">
             <div className="relative inline-block max-w-full">
-              <Image
+              <img
                 ref={imageRef}
                 src={imageUrl}
                 alt={originalFilename}
-                width={800}
-                height={600}
                 className={`max-w-full h-auto ${isReviewable ? 'cursor-crosshair' : 'cursor-default'}`}
                 onClick={handleImageClick}
-                style={{ 
+                onError={(e) => {
+                  console.error('모달 이미지 로딩 실패:', e.currentTarget.src);
+                  console.error('imageUrl:', imageUrl);
+                  console.error('storedFilename:', storedFilename);
+                }}
+                onLoad={() => {
+                  console.log('모달 이미지 로딩 성공:', imageUrl);
+                }}
+                style={{
                   maxHeight: '70vh',
                   objectFit: 'contain'
                 }}
