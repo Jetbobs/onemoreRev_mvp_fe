@@ -43,7 +43,6 @@ function RevisionPageContent() {
   const [project, setProject] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("overview")
   const [installments, setInstallments] = useState([
     { name: "계약금", percentage: 30, amount: 1500000, status: "완료", date: "2024.03.01" },
     { name: "중간금", percentage: 40, amount: 2000000, status: "대기", date: "2024.03.15" },
@@ -54,6 +53,21 @@ function RevisionPageContent() {
   const projectId = searchParams.get('projectId')
   const revNo = searchParams.get('revNo')
   const code = searchParams.get('code')
+  const tabParam = searchParams.get('tab')
+
+  // URL의 tab 파라미터를 기반으로 activeTab 상태 설정
+  const [activeTab, setActiveTab] = useState(() => {
+    const validTabs = ['overview', 'drafts', 'files']
+    return validTabs.includes(tabParam || '') ? (tabParam as string) : 'overview'
+  })
+
+  // tab 파라미터가 변경될 때 activeTab 업데이트
+  useEffect(() => {
+    const validTabs = ['overview', 'drafts', 'files']
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [tabParam])
 
   useEffect(() => {
     if (projectId) {
@@ -188,7 +202,7 @@ function RevisionPageContent() {
 
   const openGuestPage = () => {
     const currentUrl = window.location.origin;
-    const guestUrl = `${currentUrl}/revision-new?projectId=${projectId}&revNo=${revNo}&code=guest`;
+    const guestUrl = `${currentUrl}/revision-new?projectId=${projectId}&revNo=${revNo}&code=guest&tab=${activeTab}`;
     window.open(guestUrl, '_blank');
   };
 
@@ -197,6 +211,21 @@ function RevisionPageContent() {
     newInstallments[index].status = newInstallments[index].status === '완료' ? '대기' : '완료';
     setInstallments(newInstallments);
   };
+
+  // 탭 변경 시 URL 업데이트
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab)
+
+    // URL 업데이트
+    const params = new URLSearchParams()
+    if (projectId) params.set('projectId', projectId)
+    if (revNo) params.set('revNo', revNo)
+    if (code) params.set('code', code)
+    params.set('tab', newTab)
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }
 
   if (isLoading) {
     return (
@@ -343,7 +372,7 @@ function RevisionPageContent() {
         </div>
 
         {/* 탭 콘텐츠 */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <Card className="border-0 shadow-none">
             <CardContent className="p-6">
               <TabsList className="w-full justify-start rounded-none border-b h-auto p-0 bg-transparent">
@@ -400,6 +429,8 @@ function RevisionPageContent() {
                     revNo={revNo || '1'}
                     completedFiles={completedFiles}
                     revision={revision}
+                    activeTab={activeTab}
+                    code={code || undefined}
                   />
                 </TabsContent>
               </div>
