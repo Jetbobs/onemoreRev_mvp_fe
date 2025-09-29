@@ -35,7 +35,7 @@ interface Revision {
   isLast?: boolean
 }
 
-function RevisionPageContent() {
+function RevisionPageV2Content() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -84,13 +84,13 @@ function RevisionPageContent() {
         return res.json()
       })
 
-      console.log('[revision-new] info response:', data)
+      console.log('[revision-new-v2] info response:', data)
 
       const revisionData = data?.revision || data
       setRevision(revisionData)
 
     } catch (err: any) {
-      console.error('[revision-new] info error:', err)
+      console.error('[revision-new-v2] info error:', err)
       setError(err?.status === 401 ? '로그인이 필요합니다.' : '리비전 정보를 불러오지 못했습니다.')
     }
   }
@@ -107,7 +107,7 @@ function RevisionPageContent() {
       }
 
       const data = await response.json();
-      console.log('[revision-new] project data:', data);
+      console.log('[revision-new-v2] project data:', data);
 
       if (data.success && data.project) {
         const backendProject = data.project;
@@ -137,7 +137,7 @@ function RevisionPageContent() {
         throw new Error(data.message || '프로젝트 정보를 불러올 수 없습니다.');
       }
     } catch (err: any) {
-      console.warn('[revision-new] project API failed - using sample:', err.message);
+      console.warn('[revision-new-v2] project API failed - using sample:', err.message);
       setProject({
         id: projectId,
         name: "샘플 프로젝트",
@@ -411,10 +411,10 @@ function RevisionPageContent() {
   )
 }
 
-export default function RevisionPage() {
+export default function RevisionPageV2() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">로딩 중...</div>}>
-      <RevisionPageContent />
+      <RevisionPageV2Content />
     </Suspense>
   )
 }
