@@ -56,6 +56,7 @@ interface Project {
   usedRevisions: number;
   lastUpdated: string;
   budget: string;
+  lastRevisionNo?: number; // 최신 리비전 번호 추가
 }
 
 export default function ProjectsNewPage() {
@@ -100,7 +101,8 @@ export default function ProjectsNewPage() {
           revisions: project.modLimit || 0,
           usedRevisions: project.revisionCount || 0,
           lastUpdated: formatDate(project.updatedAt),
-          budget: `${project.totalPrice?.toLocaleString() || 0}원`
+          budget: `${project.totalPrice?.toLocaleString() || 0}원`,
+          lastRevisionNo: project.lastRevision?.revNo || 1
         }));
         
         setProjects(mappedProjects);
@@ -124,7 +126,8 @@ export default function ProjectsNewPage() {
           revisions: 3,
           usedRevisions: 1,
           lastUpdated: "2024.03.18",
-          budget: "5,000,000원"
+          budget: "5,000,000원",
+          lastRevisionNo: 2
         }
       ];
       setProjects(sampleProjects);
@@ -376,10 +379,10 @@ export default function ProjectsNewPage() {
                 </CardContent>
                 
                 <CardFooter className="pt-4">
-                  <Button 
+                  <Button
                     className="w-full cursor-pointer"
                     variant="outline"
-                    onClick={() => router.push(`/projects/${project.id}`)}
+                    onClick={() => router.push(`/revision-new?projectId=${project.id}&revNo=${project.lastRevisionNo || 1}`)}
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     상세보기

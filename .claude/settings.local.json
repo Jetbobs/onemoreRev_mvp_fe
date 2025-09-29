@@ -15,7 +15,8 @@
       "Bash(npm run start:dev:*)",
       "Bash(echo $NEXT_PUBLIC_API_BASE_URL)",
       "Bash(git commit -m \"$(cat <<''EOF''\n프로젝트 목록 페이지 백엔드 연동 구현\n\n- projects-new 페이지에 백엔드 API 연동\n- 날짜 진행률 계산 유틸리티 함수 추가\n- 프로젝트 목록 API 응답 타입 정의\n- 수정 횟수 표시 (revisionCount/modLimit)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []
