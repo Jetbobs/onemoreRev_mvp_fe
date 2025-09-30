@@ -1057,15 +1057,21 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                       const result = await response.json()
                       console.log('피드백 완료 API 응답:', result)
 
+                      // 리비전 상태를 'reviewed'로 업데이트하여 버튼 숨김
+                      if (result.success && result.status === 'reviewed') {
+                        setRevision(prev => prev ? { ...prev, status: 'reviewed' } : prev)
+                        console.log('🔍 리비전 상태 업데이트: reviewed')
+                      }
+
                       alert('디자이너에게 내용을 전달하였습니다')
 
-                      const params = new URLSearchParams()
-                      params.set('projectId', projectId)
-                      params.set('revNo', revNo)
-                      if (code) params.set('code', code)
-                      params.set('tab', activeTab)
-
-                      router.push(`/revision-new?${params.toString()}`)
+                      // 페이지 새로고침 대신 상태만 업데이트 (버튼이 바로 사라지도록)
+                      // const params = new URLSearchParams()
+                      // params.set('projectId', projectId)
+                      // params.set('revNo', revNo)
+                      // if (code) params.set('code', code)
+                      // params.set('tab', activeTab)
+                      // router.push(`/revision-new?${params.toString()}`)
 
                     } catch (error) {
                       console.error('피드백 완료 처리 실패:', error)
