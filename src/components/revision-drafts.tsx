@@ -176,8 +176,7 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
       // HTML 태그 제거
       const cleanComment = comment.trim().replace(/<[^>]*>/g, '')
 
-      const feedbackData = {
-        code: code,
+      const feedbackData: any = {
         projectId: parseInt(projectId!),
         revisionId: revision.id,
         trackId: parseInt(trackId),
@@ -186,7 +185,12 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
         content: cleanComment
       }
 
+      if (code) {
+        feedbackData.code = code.trim()  // 공백 제거
+      }
+
       console.log('[handleModalAddPin] Sending feedback:', feedbackData)
+      console.log('🔍 [handleModalAddPin] code 값 상세:', { code, type: typeof code, length: code?.length })
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/feedback`, {
         method: 'POST',
@@ -197,7 +201,18 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
         credentials: 'include'
       })
 
-      if (!response.ok) throw new Error('피드백 저장 실패')
+      if (!response.ok) {
+        // 에러 응답 내용 확인
+        const errorText = await response.text()
+        console.error('❌ [handleModalAddPin] 피드백 저장 API 에러 응답:', errorText)
+
+        try {
+          const errorJson = JSON.parse(errorText)
+          throw new Error(`피드백 저장 실패 (${response.status}): ${errorJson.message || errorText}`)
+        } catch (parseError) {
+          throw new Error(`피드백 저장 실패 (${response.status}): ${errorText}`)
+        }
+      }
 
       const result = await response.json()
       console.log('[handleModalAddPin] API response:', result)
@@ -326,14 +341,47 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
       const currentPin = pins.find(p => p.id === bubblePosition.pinId)
       if (!currentPin) return
 
-      const feedbackData = {
-        code: code,
+      const feedbackData: any = {
         projectId: parseInt(projectId!),
         revisionId: revision.id,
         trackId: parseInt(currentPin.trackId),
         normalX: currentPin.normalX,
         normalY: currentPin.normalY,
         content: bubbleContent.trim().replace(/<[^>]*>/g, '')
+      }
+
+      if (code) {
+        feedbackData.code = code.trim()  // 공백 제거
+      }
+
+      console.log('📤 피드백 저장 요청 데이터:', feedbackData)
+      console.log('🔍 code 값 상세:', { code, type: typeof code, length: code?.length })
+      console.log('🔍 현재 URL 파라미터:', window.location.search)
+      console.log('🔍 revision 정보:', { revision })
+      console.log('🔍 revision.invitationCode:', revision?.invitationCode)
+
+      // 백엔드에서 현재 리비전의 올바른 초대 코드 확인
+      try {
+        const revisionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/revision/info?projectId=${feedbackData.projectId}&revNo=${new URLSearchParams(window.location.search).get('revNo')}`, {
+          credentials: 'include'
+        })
+        if (revisionResponse.ok) {
+          const revisionData = await revisionResponse.json()
+          console.log('🔍 백엔드 리비전 정보:', revisionData)
+          console.log('🔍 백엔드에서 받은 invitationCode:', revisionData.invitationCode)
+
+          // 백엔드에서 받은 코드와 현재 코드 비교
+          if (revisionData.invitationCode && code) {
+            const backendCode = revisionData.invitationCode.trim()
+            const currentCode = code.trim()
+            console.log('🔍 코드 비교:', { backendCode, currentCode, match: backendCode === currentCode })
+
+            // 백엔드에서 받은 올바른 코드 사용
+            feedbackData.code = backendCode
+          }
+        }
+      } catch (error) {
+        console.log('🔍 리비전 정보 조회 실패:', error)
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/feedback`, {
@@ -345,7 +393,18 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
         credentials: 'include'
       })
 
-      if (!response.ok) throw new Error('피드백 저장 실패')
+      if (!response.ok) {
+        // 에러 응답 내용 확인
+        const errorText = await response.text()
+        console.error('❌ 피드백 저장 API 에러 응답:', errorText)
+
+        try {
+          const errorJson = JSON.parse(errorText)
+          throw new Error(`피드백 저장 실패 (${response.status}): ${errorJson.message || errorText}`)
+        } catch (parseError) {
+          throw new Error(`피드백 저장 실패 (${response.status}): ${errorText}`)
+        }
+      }
 
       const result = await response.json()
 

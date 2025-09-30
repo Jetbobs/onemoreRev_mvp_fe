@@ -86,9 +86,43 @@ function RevisionPageContent() {
 
   useEffect(() => {
     if (projectId) {
+      loadRevision()
       loadProjectDetail()
     }
   }, [projectId, revNo, code])
+
+  async function loadRevision() {
+    if (!projectId || !revNo) {
+      setError('projectId와 revNo 파라미터가 필요합니다.')
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      setError(null)
+
+      let apiUrl = `/api/v1/revision/info?projectId=${encodeURIComponent(projectId)}&revNo=${encodeURIComponent(revNo)}`
+      if (code) {
+        apiUrl += `&code=${encodeURIComponent(code)}`
+      }
+
+      const data = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${apiUrl}`, {
+        credentials: 'include'
+      }).then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+
+      console.log('[revision-new] info response:', data)
+
+      const revisionData = data?.revision || data
+      setRevision(revisionData)
+
+    } catch (err: any) {
+      console.error('[revision-new] info error:', err)
+      // revision API 실패해도 계속 진행 (project API로 기본 정보는 가져옴)
+    }
+  }
 
   async function loadProjectDetail() {
     try {
@@ -143,7 +177,7 @@ function RevisionPageContent() {
           additionalRevisionFee: backendProject.additionalModFee ?? NaN,
           revisionCriteria: backendProject.modCriteria || '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
           paymentMethod: backendProject.paymentMethod || 'installment',
-          invitationCode: backendProject.invitationCode,
+          invitationCode: backendProject.code,  // code를 invitationCode로 매핑
           tracks: backendProject.tracks || [],
           guests: backendProject.guests || []
         });
@@ -154,10 +188,11 @@ function RevisionPageContent() {
 
         if (currentRevision) {
           console.log('[revision-new] revision 정보 설정:', currentRevision);
-          // revision에 tracks 정보 추가
+          // revision에 tracks와 code 정보 추가
           const revisionWithTracks = {
             ...currentRevision,
-            tracks: backendProject.tracks || []
+            tracks: backendProject.tracks || [],
+            invitationCode: backendProject.code  // code를 invitationCode로 매핑
           };
           setRevision(revisionWithTracks);
         } else {
@@ -167,7 +202,8 @@ function RevisionPageContent() {
             id: 0,
             revNo: parseInt(revNo),
             status: 'prepare',
-            tracks: backendProject.tracks || []
+            tracks: backendProject.tracks || [],
+            invitationCode: backendProject.code  // code를 invitationCode로 매핑
           });
         }
       } else {
@@ -266,8 +302,8 @@ function RevisionPageContent() {
   }
 
   const openGuestPage = () => {
-    // revision 또는 project에서 invitationCode 가져오기
-    const invitationCode = revision?.invitationCode || revision?.project?.invitationCode || project?.invitationCode;
+    // revision에서 invitationCode 가져오기
+    const invitationCode = revision?.invitationCode;
 
     if (!invitationCode) {
       alert('초대 코드를 찾을 수 없습니다.');
@@ -437,7 +473,7 @@ function RevisionPageContent() {
               </p>
             </div>
             <div className="flex gap-2">
-              {!code && (revision?.invitationCode || revision?.project?.invitationCode || project?.invitationCode) && (
+              {!code && revision?.invitationCode && (
                 <Button variant="outline" size="sm" onClick={openGuestPage}>
                   <ExternalLink className="h-4 w-4 mr-2" />
                   게스트페이지 열기
