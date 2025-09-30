@@ -158,6 +158,7 @@ function RevisionPageContent() {
           additionalRevisionFee: 50000,
           revisionCriteria: '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
           paymentMethod: 'installment',
+          invitationCode: backendProject.invitationCode,
           tracks: backendProject.tracks || [],
           guests: backendProject.guests || []
         });
@@ -215,8 +216,16 @@ function RevisionPageContent() {
   }
 
   const openGuestPage = () => {
+    // revision 또는 project에서 invitationCode 가져오기
+    const invitationCode = revision?.invitationCode || revision?.project?.invitationCode || project?.invitationCode;
+
+    if (!invitationCode) {
+      alert('초대 코드를 찾을 수 없습니다.');
+      return;
+    }
+
     const currentUrl = window.location.origin;
-    const guestUrl = `${currentUrl}/revision-new?projectId=${projectId}&revNo=${revNo}&code=guest&tab=${activeTab}`;
+    const guestUrl = `${currentUrl}/revision-new?projectId=${projectId}&revNo=${revNo}&code=${invitationCode}&tab=${activeTab}`;
     window.open(guestUrl, '_blank');
   };
 
@@ -359,7 +368,7 @@ function RevisionPageContent() {
               </p>
             </div>
             <div className="flex gap-2">
-              {!code && (
+              {!code && (revision?.invitationCode || revision?.project?.invitationCode || project?.invitationCode) && (
                 <Button variant="outline" size="sm" onClick={openGuestPage}>
                   <ExternalLink className="h-4 w-4 mr-2" />
                   게스트페이지 열기

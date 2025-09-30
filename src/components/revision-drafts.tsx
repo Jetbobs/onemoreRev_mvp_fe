@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { ChevronLeft, ChevronRight, MessageSquare, Plus, Maximize2 } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ChevronLeft, ChevronRight, MessageSquare, Plus, Maximize2, AlertCircle } from 'lucide-react'
 import { ImageModal } from '@/components/image-modal'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -134,6 +135,7 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
   }, [revision])
 
   const isReviewable = () => {
+    console.log('[isReviewable] code:', code, 'revision status:', revision?.status)
     return !!code && revision?.status === 'submitted'
   }
 
@@ -163,19 +165,58 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
     setModalImage(prev => ({ ...prev, isOpen: false }))
   }
 
-  const handleModalAddPin = (trackId: string, normalX: number, normalY: number, comment: string) => {
-    const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-
-    const newFeedback: Feedback = {
-      id: feedbackId,
-      trackId,
-      normalX,
-      normalY,
-      content: comment,
-      createdAt: new Date().toISOString()
+  const handleModalAddPin = async (trackId: string, normalX: number, normalY: number, comment: string) => {
+    if (!revision) {
+      alert('리비전 정보를 불러오지 못했습니다.')
+      return
     }
 
-    setFeedbacks(prev => [...prev, newFeedback])
+    try {
+      // HTML 태그 제거
+      const cleanComment = comment.trim().replace(/<[^>]*>/g, '')
+
+      const feedbackData = {
+        code: code,
+        projectId: parseInt(projectId!),
+        revisionId: revision.id,
+        trackId: parseInt(trackId),
+        normalX: normalX,
+        normalY: normalY,
+        content: cleanComment
+      }
+
+      console.log('[handleModalAddPin] Sending feedback:', feedbackData)
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(feedbackData),
+        credentials: 'include'
+      })
+
+      if (!response.ok) throw new Error('피드백 저장 실패')
+
+      const result = await response.json()
+      console.log('[handleModalAddPin] API response:', result)
+
+      // 로컬 상태에 새 피드백 추가
+      const newFeedback: Feedback = {
+        id: result.id || Date.now().toString(),
+        trackId,
+        normalX,
+        normalY,
+        content: cleanComment,
+        createdAt: new Date().toISOString()
+      }
+
+      setFeedbacks(prev => [...prev, newFeedback])
+
+    } catch (error) {
+      console.error('[handleModalAddPin] 피드백 저장 오류:', error)
+      alert('피드백 저장에 실패했습니다.')
+    }
   }
 
   // 피드백 관련 함수들
@@ -233,6 +274,47 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
     }
   }
 
+  const handleCreateNextRevision = async () => {
+    if (!revision) {
+      alert('리비전 정보를 불러오지 못했습니다.')
+      return
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/revision/new`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          projectId: parseInt(projectId || '0')
+        }),
+        credentials: 'include'
+      })
+
+      if (!response.ok) throw new Error('다음 리비전 생성 실패')
+
+      const result = await response.json()
+      console.log('다음 리비전 생성 API 응답:', result)
+
+      alert('다음 리비전이 생성되었습니다')
+
+      // 새로 생성된 리비전 페이지로 이동 (현재 탭 유지)
+      const newRevNo = result.revision?.revNo || (revision.revNo + 1)
+      const params = new URLSearchParams()
+      params.set('projectId', projectId)
+      params.set('revNo', newRevNo.toString())
+      if (code) params.set('code', code)
+      params.set('tab', activeTab)
+
+      router.push(`/revision-new?${params.toString()}`)
+
+    } catch (error) {
+      console.error('다음 리비전 생성 실패:', error)
+      alert('다음 리비전 생성에 실패했습니다. 다시 시도해주세요.')
+    }
+  }
+
   const saveFeedback = async () => {
     if (!bubbleContent.trim() || !revision) return
 
@@ -247,7 +329,7 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
         trackId: parseInt(currentPin.trackId),
         normalX: currentPin.normalX,
         normalY: currentPin.normalY,
-        content: bubbleContent.trim()
+        content: bubbleContent.trim().replace(/<[^>]*>/g, '')
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/feedback`, {
@@ -268,7 +350,7 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
         trackId: currentPin.trackId,
         normalX: currentPin.normalX,
         normalY: currentPin.normalY,
-        content: bubbleContent,
+        content: bubbleContent.trim().replace(/<[^>]*>/g, ''),
         createdAt: new Date().toISOString()
       }
 
@@ -462,8 +544,35 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
     )
   }
 
+  // 게스트 모드에서 상태별 안내 메시지
+  const getGuestStatusMessage = () => {
+    if (!code) return null
+
+    switch(revision.status) {
+      case 'prepare':
+        return '작성자가 아직 리비전을 제출하지 않았습니다. 제출 후 피드백을 작성할 수 있습니다.'
+      case 'submitted':
+        return '이미지를 클릭하여 피드백을 작성할 수 있습니다.'
+      case 'reviewed':
+        return '이미 피드백이 완료된 리비전입니다.'
+      default:
+        return null
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* 게스트 모드 상태 안내 */}
+      {code && (
+        <Alert className={revision.status === 'submitted' ? 'border-blue-200 bg-blue-50' : 'border-yellow-200 bg-yellow-50'}>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>리비전 상태: {revision.status}</strong><br />
+            {getGuestStatusMessage()}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Navigation buttons */}
       <div className="flex justify-between mb-6">
         <Button
@@ -745,6 +854,19 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                 </Button>
               </div>
             )}
+
+            {/* 디자이너 모드 - 다음 리비전 생성 버튼 */}
+            {!code && (revision?.status === 'reviewed' || revision?.status === 'submitted') && (
+              <div className="mt-6 text-center">
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700"
+                  onClick={handleCreateNextRevision}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  다음 리비전 생성
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -776,10 +898,10 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                     <div className="flex items-start gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full mt-1 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-gray-800 break-words">{feedback.content}</p>
+                        <p className="text-gray-800 break-words">{feedback.content?.replace(/<[^>]*>/g, '') || ''}</p>
                         {feedback.reply && (
                           <div className="mt-1 p-1 bg-blue-50 rounded text-blue-800">
-                            <strong>답글:</strong> {feedback.reply}
+                            <strong>답글:</strong> {feedback.reply?.replace(/<[^>]*>/g, '') || ''}
                           </div>
                         )}
                         <p className="text-gray-500 mt-1">
@@ -807,7 +929,12 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
           <div className="space-y-2">
             <Textarea
               value={bubbleContent}
-              onChange={(e) => setBubbleContent(e.target.value)}
+              onChange={(e) => setBubbleContent(e.target.value.replace(/<[^>]*>/g, ''))}
+              onPaste={(e) => {
+                e.preventDefault()
+                const paste = e.clipboardData.getData('text/plain').replace(/<[^>]*>/g, '')
+                setBubbleContent(prev => prev + paste)
+              }}
               placeholder="피드백을 입력하세요..."
               className="min-h-[60px] text-sm resize-none"
               maxLength={1000}
