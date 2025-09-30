@@ -142,15 +142,15 @@ function RevisionPageContent() {
       if (project && (project.id || project.name)) {
         const backendProject = project;
 
-        // installments 데이터도 백엔드에서 받아오기
-        const projectInstallments = backendProject.installments || [];
-        if (projectInstallments.length > 0) {
-          setInstallments(projectInstallments.map((inst: any) => ({
-            name: inst.name || inst.type || '결제',
-            percentage: inst.percentage || 0,
-            amount: inst.amount || 0,
-            status: inst.status || '대기',
-            date: formatDate(inst.dueDate) || inst.date || '미정'
+        // paycheckPoints 데이터를 installments로 매핑
+        const projectPaycheckPoints = backendProject.paycheckPoints || [];
+        if (projectPaycheckPoints.length > 0) {
+          setInstallments(projectPaycheckPoints.map((point: any) => ({
+            name: point.name || point.type || '결제',
+            percentage: point.percentage || 0,
+            amount: point.amount || 0,
+            status: point.status || '대기',
+            date: formatDate(point.dueDate) || point.date || '미정'
           })));
         }
 
@@ -165,12 +165,12 @@ function RevisionPageContent() {
           draftDeadline: formatDate(backendProject.draftDeadline) || '미정',
           finalDeadline: formatDate(backendProject.deadline) || '미정',
           budget: backendProject.totalPrice || backendProject.budget || 0,
-          clientPhone: backendProject.clientPhone || backendProject.client?.phone || '연락처 미등록',
-          sourceFileProvision: backendProject.sourceFileProvision || 'no',
+          clientPhone: '매핑 예정 (백엔드 추가 후)',
+          sourceFileProvision: backendProject.originalFileProvided || 'no',
           revisionCount: backendProject.modLimit || backendProject.revisionLimit || 0,
           usedRevisions: backendProject.revisionCount || backendProject.usedRevisions || 0,
           additionalRevisionFee: backendProject.additionalRevisionFee || 50000,
-          revisionCriteria: backendProject.revisionCriteria || '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
+          revisionCriteria: backendProject.modeCriteria || '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
           paymentMethod: backendProject.paymentMethod || 'installment',
           invitationCode: backendProject.invitationCode,
           tracks: backendProject.tracks || [],
