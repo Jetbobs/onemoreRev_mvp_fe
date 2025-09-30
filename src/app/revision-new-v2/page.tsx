@@ -104,8 +104,15 @@ function RevisionPageV2Content() {
       const data = await projectApi.info(projectId!);
       console.log('[revision-new-v2] project info API 응답:', JSON.stringify(data, null, 2));
 
-      if (data.success && data.project) {
-        const backendProject = data.project;
+      // API 응답 구조 확인 및 다양한 형태 지원
+      const project = data.project || data.data?.project || data;
+      const success = data.success !== false; // success가 명시적으로 false가 아니면 성공으로 간주
+
+      console.log('[revision-new-v2] 파싱된 project 데이터:', project);
+      console.log('[revision-new-v2] success 상태:', success);
+
+      if (project && (project.id || project.name)) {
+        const backendProject = project;
 
         // installments 데이터도 백엔드에서 받아오기
         const projectInstallments = backendProject.installments || [];
@@ -141,7 +148,8 @@ function RevisionPageV2Content() {
           guests: backendProject.guests || []
         });
       } else {
-        throw new Error(data.message || '프로젝트 정보를 불러올 수 없습니다.');
+        console.warn('[revision-new-v2] 프로젝트 데이터 없음 - API 응답:', data);
+        throw new Error(data.message || '프로젝트 데이터가 없습니다.');
       }
     } catch (err: any) {
       console.error('[revision-new-v2] project info API 실패:', {
