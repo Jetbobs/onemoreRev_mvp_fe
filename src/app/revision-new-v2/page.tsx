@@ -98,9 +98,11 @@ function RevisionPageV2Content() {
 
   async function loadProjectDetail() {
     try {
+      console.log('[revision-new-v2] 프로젝트 정보 로딩 시작, projectId:', projectId);
+
       // /api/v1/project/info API 사용
       const data = await projectApi.info(projectId!);
-      console.log('[revision-new-v2] project info data:', data);
+      console.log('[revision-new-v2] project info API 응답:', JSON.stringify(data, null, 2));
 
       if (data.success && data.project) {
         const backendProject = data.project;
@@ -142,7 +144,12 @@ function RevisionPageV2Content() {
         throw new Error(data.message || '프로젝트 정보를 불러올 수 없습니다.');
       }
     } catch (err: any) {
-      console.warn('[revision-new-v2] project info API failed - using fallback:', err.message);
+      console.error('[revision-new-v2] project info API 실패:', {
+        message: err.message,
+        status: err.status,
+        data: err.data,
+        stack: err.stack
+      });
 
       // 폴백으로 기존 /api/v1/project/{id} API 시도
       try {
@@ -185,25 +192,17 @@ function RevisionPageV2Content() {
         console.warn('[revision-new-v2] fallback API also failed:', fallbackErr);
       }
 
-      // 모든 API 실패 시 샘플 데이터 사용
-      setProject({
-        id: projectId,
-        name: "샘플 프로젝트",
-        authorEmail: "sample@example.com",
-        status: "진행중",
-        progress: 75,
-        startDate: "2024.03.01",
-        draftDeadline: "2024.03.15",
-        finalDeadline: "2024.03.30",
-        budget: 5000000,
-        clientPhone: "010-1234-5678",
-        sourceFileProvision: "yes",
-        revisionCount: 3,
-        usedRevisions: 1,
-        additionalRevisionFee: 50000,
-        revisionCriteria: "디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.",
-        paymentMethod: "installment"
-      });
+      // 모든 API 실패 시 에러 상태 설정
+      const errorMessage = err?.status === 401
+        ? '로그인이 필요합니다.'
+        : err?.status === 404
+        ? '프로젝트를 찾을 수 없습니다.'
+        : err?.status === 403
+        ? '프로젝트에 접근할 권한이 없습니다.'
+        : '프로젝트 정보를 불러올 수 없습니다. 네트워크 연결을 확인하거나 나중에 다시 시도해주세요.';
+
+      console.error('[revision-new-v2] 모든 API 실패 - 에러 표시:', errorMessage);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -297,7 +296,26 @@ function RevisionPageV2Content() {
           </Button>
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              <div className="flex items-center justify-between">
+                <span>{error}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setError(null);
+                    setIsLoading(true);
+                    if (projectId) {
+                      loadRevision();
+                      loadProjectDetail();
+                    }
+                  }}
+                  className="ml-4"
+                >
+                  다시 시도
+                </Button>
+              </div>
+            </AlertDescription>
           </Alert>
         </div>
       </div>
