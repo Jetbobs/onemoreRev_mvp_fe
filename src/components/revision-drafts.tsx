@@ -192,6 +192,30 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
       console.log('[handleModalAddPin] Sending feedback:', feedbackData)
       console.log('🔍 [handleModalAddPin] code 값 상세:', { code, type: typeof code, length: code?.length })
 
+      // 백엔드에서 현재 리비전의 올바른 초대 코드 확인
+      try {
+        const revisionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/revision/info?projectId=${feedbackData.projectId}&revNo=${new URLSearchParams(window.location.search).get('revNo')}`, {
+          credentials: 'include'
+        })
+        if (revisionResponse.ok) {
+          const revisionData = await revisionResponse.json()
+          console.log('🔍 [handleModalAddPin] 백엔드 리비전 정보:', revisionData)
+          console.log('🔍 [handleModalAddPin] 백엔드에서 받은 invitationCode:', revisionData.invitationCode)
+
+          // 백엔드에서 받은 코드와 현재 코드 비교
+          if (revisionData.invitationCode && code) {
+            const backendCode = revisionData.invitationCode.trim()
+            const currentCode = code.trim()
+            console.log('🔍 [handleModalAddPin] 코드 비교:', { backendCode, currentCode, match: backendCode === currentCode })
+
+            // 백엔드에서 받은 올바른 코드 사용
+            feedbackData.code = backendCode
+          }
+        }
+      } catch (error) {
+        console.log('🔍 [handleModalAddPin] 리비전 정보 조회 실패:', error)
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/feedback`, {
         method: 'POST',
         headers: {
@@ -981,19 +1005,54 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                     }
 
                     try {
+                      console.log('🔍 피드백 완료 API 호출 시작:', {
+                        revisionId: revision.id,
+                        code,
+                        codeLength: code?.length,
+                        codeTrimmed: code?.trim()
+                      })
+
+                      // 백엔드에서 올바른 코드 가져오기 (피드백 저장과 동일한 로직)
+                      let validCode = code?.trim()
+                      try {
+                        const revisionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/revision/info?projectId=${revision.projectId || new URLSearchParams(window.location.search).get('projectId')}&revNo=${new URLSearchParams(window.location.search).get('revNo')}`, {
+                          credentials: 'include'
+                        })
+                        if (revisionResponse.ok) {
+                          const revisionData = await revisionResponse.json()
+                          console.log('🔍 [피드백완료] 백엔드 리비전 정보:', revisionData)
+                          if (revisionData.invitationCode) {
+                            validCode = revisionData.invitationCode.trim()
+                            console.log('🔍 [피드백완료] 백엔드에서 받은 올바른 코드 사용:', validCode)
+                          }
+                        }
+                      } catch (error) {
+                        console.log('🔍 [피드백완료] 리비전 정보 조회 실패, 원래 코드 사용:', error)
+                      }
+
+                      const requestData = {
+                        revisionId: revision.id,
+                        code: validCode
+                      }
+
+                      console.log('🔍 피드백 완료 요청 데이터:', requestData)
+
                       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/revision/review/done`, {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                          revisionId: revision.id,
-                          code: code
-                        }),
+                        body: JSON.stringify(requestData),
                         credentials: 'include'
                       })
 
-                      if (!response.ok) throw new Error('피드백 완료 처리 실패')
+                      console.log('🔍 피드백 완료 API 응답 상태:', response.status)
+
+                      if (!response.ok) {
+                        const errorText = await response.text()
+                        console.error('❌ 피드백 완료 API 에러 응답:', errorText)
+                        throw new Error(`피드백 완료 처리 실패 (${response.status}): ${errorText}`)
+                      }
 
                       const result = await response.json()
                       console.log('피드백 완료 API 응답:', result)
