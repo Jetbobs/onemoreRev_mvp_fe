@@ -73,13 +73,16 @@ export const authApi = {
 
 // 프로젝트 관련 API
 export const projectApi = {
-  list: () => 
+  list: () =>
     apiFetch('/api/v1/project/list'),
 
-  detail: (id: string) => 
+  detail: (id: string) =>
     apiFetch(`/api/v1/project/${id}`),
 
-  create: (projectData: any) => 
+  info: (projectId: string) =>
+    apiFetch(`/api/v1/project/info?projectId=${projectId}`),
+
+  create: (projectData: any) =>
     apiFetch('/api/v1/project/create', {
       method: 'POST',
       body: projectData

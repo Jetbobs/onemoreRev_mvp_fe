@@ -15,6 +15,7 @@ import { RevisionOverview } from '@/components/revision-overview'
 import { RevisionDrafts } from '@/components/revision-drafts'
 import { RevisionFiles } from '@/components/revision-files'
 import { calculateDateProgress, formatDate } from '@/utils/dateProgress'
+import { projectApi } from '@/lib/api'
 
 interface Revision {
   id: string
@@ -125,39 +126,43 @@ function RevisionPageContent() {
 
   async function loadProjectDetail() {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/project/${projectId}`,
-        { credentials: 'include' }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('[revision-new] project data:', data);
+      // /api/v1/project/info API 사용
+      const data = await projectApi.info(projectId!);
+      console.log('[revision-new] project info data:', data);
 
       if (data.success && data.project) {
         const backendProject = data.project;
+
+        // installments 데이터도 백엔드에서 받아오기
+        const projectInstallments = backendProject.installments || [];
+        if (projectInstallments.length > 0) {
+          setInstallments(projectInstallments.map((inst: any) => ({
+            name: inst.name || inst.type || '결제',
+            percentage: inst.percentage || 0,
+            amount: inst.amount || 0,
+            status: inst.status || '대기',
+            date: formatDate(inst.dueDate) || inst.date || '미정'
+          })));
+        }
 
         setProject({
           id: backendProject.id,
           name: backendProject.name,
           description: backendProject.description,
-          authorEmail: backendProject.authorEmail || 'author@example.com',
+          authorEmail: backendProject.authorEmail || backendProject.author?.email || 'author@example.com',
           status: getProjectStatus(backendProject),
           progress: calculateDateProgress(backendProject.startDate, backendProject.deadline),
           startDate: formatDate(backendProject.startDate) || '미정',
-          draftDeadline: '미정',
+          draftDeadline: formatDate(backendProject.draftDeadline) || '미정',
           finalDeadline: formatDate(backendProject.deadline) || '미정',
-          budget: backendProject.totalPrice || 0,
-          clientPhone: '연락처 미등록',
-          sourceFileProvision: 'no',
-          revisionCount: backendProject.modLimit || 0,
-          usedRevisions: backendProject.revisionCount || 0,
-          additionalRevisionFee: 50000,
-          revisionCriteria: '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
-          paymentMethod: 'installment',
+          budget: backendProject.totalPrice || backendProject.budget || 0,
+          clientPhone: backendProject.clientPhone || backendProject.client?.phone || '연락처 미등록',
+          sourceFileProvision: backendProject.sourceFileProvision || 'no',
+          revisionCount: backendProject.modLimit || backendProject.revisionLimit || 0,
+          usedRevisions: backendProject.revisionCount || backendProject.usedRevisions || 0,
+          additionalRevisionFee: backendProject.additionalRevisionFee || 50000,
+          revisionCriteria: backendProject.revisionCriteria || '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
+          paymentMethod: backendProject.paymentMethod || 'installment',
           invitationCode: backendProject.invitationCode,
           tracks: backendProject.tracks || [],
           guests: backendProject.guests || []
@@ -166,7 +171,51 @@ function RevisionPageContent() {
         throw new Error(data.message || '프로젝트 정보를 불러올 수 없습니다.');
       }
     } catch (err: any) {
-      console.warn('[revision-new] project API failed - using sample:', err.message);
+      console.warn('[revision-new] project info API failed - using fallback:', err.message);
+
+      // 폴백으로 기존 /api/v1/project/{id} API 시도
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/project/${projectId}`,
+          { credentials: 'include' }
+        );
+
+        if (response.ok) {
+          const fallbackData = await response.json();
+          console.log('[revision-new] fallback project data:', fallbackData);
+
+          if (fallbackData.success && fallbackData.project) {
+            const backendProject = fallbackData.project;
+            setProject({
+              id: backendProject.id,
+              name: backendProject.name,
+              description: backendProject.description,
+              authorEmail: backendProject.authorEmail || 'author@example.com',
+              status: getProjectStatus(backendProject),
+              progress: calculateDateProgress(backendProject.startDate, backendProject.deadline),
+              startDate: formatDate(backendProject.startDate) || '미정',
+              draftDeadline: '미정',
+              finalDeadline: formatDate(backendProject.deadline) || '미정',
+              budget: backendProject.totalPrice || 0,
+              clientPhone: '연락처 미등록',
+              sourceFileProvision: 'no',
+              revisionCount: backendProject.modLimit || 0,
+              usedRevisions: backendProject.revisionCount || 0,
+              additionalRevisionFee: 50000,
+              revisionCriteria: '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
+              paymentMethod: 'installment',
+              invitationCode: backendProject.invitationCode,
+              tracks: backendProject.tracks || [],
+              guests: backendProject.guests || []
+            });
+            return;
+          }
+        }
+      } catch (fallbackErr) {
+        console.warn('[revision-new] fallback API also failed:', fallbackErr);
+      }
+
+      // 모든 API 실패 시 샘플 데이터 사용
       setProject({
         id: projectId,
         name: "샘플 프로젝트",
