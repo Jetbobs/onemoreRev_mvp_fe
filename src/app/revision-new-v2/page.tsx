@@ -114,15 +114,15 @@ function RevisionPageV2Content() {
       if (project && (project.id || project.name)) {
         const backendProject = project;
 
-        // paycheckPoints 데이터를 installments로 매핑
-        const projectPaycheckPoints = backendProject.paycheckPoints || [];
-        if (projectPaycheckPoints.length > 0) {
-          setInstallments(projectPaycheckPoints.map((point: any) => ({
-            name: point.name || point.type || '결제',
-            percentage: point.percentage || 0,
-            amount: point.amount || 0,
-            status: point.status || '대기',
-            date: formatDate(point.dueDate) || point.date || '미정'
+        // payCheckPoints 데이터를 installments로 매핑
+        const projectPayCheckPoints = backendProject.payCheckPoints || [];
+        if (projectPayCheckPoints.length > 0) {
+          setInstallments(projectPayCheckPoints.map((point: any) => ({
+            name: point.label || '결제',
+            percentage: 0, // percentage 컬럼이 없으므로 기본값 (필요시 전체 예산 대비 계산)
+            amount: point.price || 0,
+            status: (point.paidAmount >= point.price) ? '완료' : '대기',
+            date: formatDate(point.payDate) || '미정'
           })));
         }
 
@@ -130,19 +130,24 @@ function RevisionPageV2Content() {
           id: backendProject.id,
           name: backendProject.name,
           description: backendProject.description,
-          authorEmail: backendProject.authorEmail || backendProject.author?.email || 'author@example.com',
+          authorEmail: backendProject.authorEmail || backendProject.author?.email || 'authorEmail 매핑 에러',
           status: getProjectStatus(backendProject),
           progress: calculateDateProgress(backendProject.startDate, backendProject.deadline),
           startDate: formatDate(backendProject.startDate) || '미정',
           draftDeadline: formatDate(backendProject.draftDeadline) || '미정',
           finalDeadline: formatDate(backendProject.deadline) || '미정',
           budget: backendProject.totalPrice || backendProject.budget || 0,
-          clientPhone: '매핑 예정 (백엔드 추가 후)',
+          clientPhone: backendProject.guests?.map((guest: any) => {
+            const phone = guest.phone;
+            if (!phone) return null;
+            // 010-1234-5678 형태로 포맷팅
+            return phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+          }).filter(Boolean).join(', ') || '연락처 없음',
           sourceFileProvision: backendProject.originalFileProvided || 'no',
           revisionCount: backendProject.modLimit || backendProject.revisionLimit || 0,
           usedRevisions: backendProject.revisionCount || backendProject.usedRevisions || 0,
-          additionalRevisionFee: backendProject.additionalRevisionFee || 50000,
-          revisionCriteria: backendProject.modeCriteria || '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
+          additionalRevisionFee: backendProject.additionalModFee ?? NaN,
+          revisionCriteria: backendProject.modCriteria || '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
           paymentMethod: backendProject.paymentMethod || 'installment',
           tracks: backendProject.tracks || [],
           guests: backendProject.guests || []

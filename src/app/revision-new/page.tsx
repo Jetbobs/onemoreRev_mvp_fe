@@ -86,43 +86,9 @@ function RevisionPageContent() {
 
   useEffect(() => {
     if (projectId) {
-      loadRevision()
       loadProjectDetail()
     }
   }, [projectId, revNo, code])
-
-  async function loadRevision() {
-    if (!projectId || !revNo) {
-      setError('projectId와 revNo 파라미터가 필요합니다.')
-      setIsLoading(false)
-      return
-    }
-
-    try {
-      setError(null)
-
-      let apiUrl = `/api/v1/revision/info?projectId=${encodeURIComponent(projectId)}&revNo=${encodeURIComponent(revNo)}`
-      if (code) {
-        apiUrl += `&code=${encodeURIComponent(code)}`
-      }
-
-      const data = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${apiUrl}`, {
-        credentials: 'include'
-      }).then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      })
-
-      console.log('[revision-new] info response:', data)
-
-      const revisionData = data?.revision || data
-      setRevision(revisionData)
-
-    } catch (err: any) {
-      console.error('[revision-new] info error:', err)
-      setError(err?.status === 401 ? '로그인이 필요합니다.' : '리비전 정보를 불러오지 못했습니다.')
-    }
-  }
 
   async function loadProjectDetail() {
     try {
@@ -142,15 +108,15 @@ function RevisionPageContent() {
       if (project && (project.id || project.name)) {
         const backendProject = project;
 
-        // paycheckPoints 데이터를 installments로 매핑
-        const projectPaycheckPoints = backendProject.paycheckPoints || [];
-        if (projectPaycheckPoints.length > 0) {
-          setInstallments(projectPaycheckPoints.map((point: any) => ({
-            name: point.name || point.type || '결제',
-            percentage: point.percentage || 0,
-            amount: point.amount || 0,
-            status: point.status || '대기',
-            date: formatDate(point.dueDate) || point.date || '미정'
+        // payCheckPoints 데이터를 installments로 매핑
+        const projectPayCheckPoints = backendProject.payCheckPoints || [];
+        if (projectPayCheckPoints.length > 0) {
+          setInstallments(projectPayCheckPoints.map((point: any) => ({
+            name: point.label || '결제',
+            percentage: 0, // percentage 컬럼이 없으므로 기본값 (필요시 전체 예산 대비 계산)
+            amount: point.price || 0,
+            status: (point.paidAmount >= point.price) ? '완료' : '대기',
+            date: formatDate(point.payDate) || '미정'
           })));
         }
 
@@ -158,24 +124,52 @@ function RevisionPageContent() {
           id: backendProject.id,
           name: backendProject.name,
           description: backendProject.description,
-          authorEmail: backendProject.authorEmail || backendProject.author?.email || 'author@example.com',
+          authorEmail: backendProject.authorEmail || backendProject.author?.email || 'authorEmail 매핑 에러',
           status: getProjectStatus(backendProject),
           progress: calculateDateProgress(backendProject.startDate, backendProject.deadline),
           startDate: formatDate(backendProject.startDate) || '미정',
           draftDeadline: formatDate(backendProject.draftDeadline) || '미정',
           finalDeadline: formatDate(backendProject.deadline) || '미정',
           budget: backendProject.totalPrice || backendProject.budget || 0,
-          clientPhone: '매핑 예정 (백엔드 추가 후)',
+          clientPhone: backendProject.guests?.map((guest: any) => {
+            const phone = guest.phone;
+            if (!phone) return null;
+            // 010-1234-5678 형태로 포맷팅
+            return phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+          }).filter(Boolean).join(', ') || '연락처 없음',
           sourceFileProvision: backendProject.originalFileProvided || 'no',
           revisionCount: backendProject.modLimit || backendProject.revisionLimit || 0,
           usedRevisions: backendProject.revisionCount || backendProject.usedRevisions || 0,
-          additionalRevisionFee: backendProject.additionalRevisionFee || 50000,
-          revisionCriteria: backendProject.modeCriteria || '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
+          additionalRevisionFee: backendProject.additionalModFee ?? NaN,
+          revisionCriteria: backendProject.modCriteria || '디자인 컨셉 변경, 색상 수정, 타이포그래피 조정 등 주요 디자인 요소의 변경을 1회 수정으로 계산합니다.',
           paymentMethod: backendProject.paymentMethod || 'installment',
           invitationCode: backendProject.invitationCode,
           tracks: backendProject.tracks || [],
           guests: backendProject.guests || []
         });
+
+        // revision 정보 설정 (project info에서 revision 데이터 추출)
+        const projectRevisions = backendProject.revisions || [];
+        const currentRevision = projectRevisions.find((rev: any) => rev.revNo === parseInt(revNo));
+
+        if (currentRevision) {
+          console.log('[revision-new] revision 정보 설정:', currentRevision);
+          // revision에 tracks 정보 추가
+          const revisionWithTracks = {
+            ...currentRevision,
+            tracks: backendProject.tracks || []
+          };
+          setRevision(revisionWithTracks);
+        } else {
+          console.warn('[revision-new] 해당 revNo의 revision을 찾을 수 없음:', revNo, 'available revisions:', projectRevisions.map((r: any) => r.revNo));
+          // revision이 없어도 tracks는 보여줘야 하므로 기본 revision 생성
+          setRevision({
+            id: 0,
+            revNo: parseInt(revNo),
+            status: 'prepare',
+            tracks: backendProject.tracks || []
+          });
+        }
       } else {
         console.warn('[revision-new] 프로젝트 데이터 없음 - API 응답:', data);
         throw new Error(data.message || '프로젝트 데이터가 없습니다.');

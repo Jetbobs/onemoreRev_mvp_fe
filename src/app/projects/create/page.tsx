@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
+import { projectApi } from '@/lib/api';
 import { Header } from "@/components/header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,8 @@ import { DatePicker } from '@/components/ui/date-picker';
 const MultiStepProjectForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [formData, setFormData] = useState({
     // Step 1
     projectName: '',
@@ -27,7 +30,6 @@ const MultiStepProjectForm = () => {
     draftDeadline: '',
     finalDeadline: '',
     budget: '',
-    clientPhone: '',
     sourceFileProvision: '',
     // Step 2
     revisionCount: '',
@@ -36,6 +38,11 @@ const MultiStepProjectForm = () => {
     // Step 3
     paymentMethod: ''
   });
+
+  // 클라이언트 연락처 관리 (다중 입력)
+  const [clientPhones, setClientPhones] = useState([
+    { id: 1, phone: '', name: '', email: '' }
+  ]);
 
   // 분할 결제 관련 state
   const [installments, setInstallments] = useState([
@@ -51,7 +58,7 @@ const MultiStepProjectForm = () => {
     draftDeadline: false,
     finalDeadline: false,
     budget: false,
-    clientPhone: false,
+    clientPhones: false,
     sourceFileProvision: false,
     revisionCount: false,
     additionalRevisionFee: false,
@@ -59,7 +66,7 @@ const MultiStepProjectForm = () => {
     paymentMethod: false
   });
 
-  const totalSteps = 4;
+  const totalSteps = 3;  // 실제 입력 단계는 3단계까지, 4단계는 완료 화면
   const progressPercentage = (currentStep / totalSteps) * 100;
 
   const handleInputChange = (field: string, value: string) => {
@@ -92,8 +99,29 @@ const MultiStepProjectForm = () => {
   };
 
   const updateInstallment = (id: number, field: string, value: string | number) => {
-    setInstallments(installments.map(i => 
+    setInstallments(installments.map(i =>
       i.id === id ? { ...i, [field]: value } : i
+    ));
+  };
+
+  // 클라이언트 연락처 관련 함수들
+  const addClientPhone = () => {
+    const newId = Math.max(...clientPhones.map(p => p.id)) + 1;
+    setClientPhones([
+      ...clientPhones,
+      { id: newId, phone: '', name: '', email: '' }
+    ]);
+  };
+
+  const removeClientPhone = (id: number) => {
+    if (clientPhones.length > 1) {
+      setClientPhones(clientPhones.filter(p => p.id !== id));
+    }
+  };
+
+  const updateClientPhone = (id: number, field: string, value: string) => {
+    setClientPhones(clientPhones.map(p =>
+      p.id === id ? { ...p, [field]: value } : p
     ));
   };
 
@@ -120,7 +148,7 @@ const MultiStepProjectForm = () => {
         case 'draftDeadline': return '초안 마감일을 선택해주세요.';
         case 'finalDeadline': return '프로젝트 마감일을 선택해주세요.';
         case 'budget': return '비용을 입력해주세요.';
-        case 'clientPhone': return '의뢰인 전화번호를 입력해주세요.';
+        case 'clientPhones': return '의뢰인 전화번호를 최소 1개 이상 입력해주세요.';
         case 'sourceFileProvision': return '원본파일 제공 여부를 선택해주세요.';
         case 'revisionCount': return '수정 횟수를 입력해주세요.';
         case 'additionalRevisionFee': return '추가 수정 요금을 입력해주세요.';
@@ -150,7 +178,7 @@ const MultiStepProjectForm = () => {
   const getCurrentStepFields = () => {
     switch (currentStep) {
       case 1:
-        return ['projectName', 'startDate', 'draftDeadline', 'finalDeadline', 'budget', 'clientPhone', 'sourceFileProvision'];
+        return ['projectName', 'startDate', 'draftDeadline', 'finalDeadline', 'budget', 'clientPhones', 'sourceFileProvision'];
       case 2:
         return ['revisionCount', 'additionalRevisionFee', 'revisionCriteria'];
       case 3:
@@ -166,7 +194,7 @@ const MultiStepProjectForm = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // 현재 스텝의 모든 필드를 touched로 표시
     const currentStepFields = getCurrentStepFields();
     const newTouched = { ...touched };
@@ -177,17 +205,91 @@ const MultiStepProjectForm = () => {
 
     // 유효성 검사 통과시에만 제출
     if (isStepValid()) {
-      console.log('프로젝트 생성:', formData);
-      // 완료 단계로 이동
-      setCurrentStep(4);
+      setIsSubmitting(true);
+      setSubmitError('');
+
+      try {
+        // API 요청 데이터 구성 (매핑 가이드 기반)
+        const requestData = {
+          // Basic Info
+          name: formData.projectName,
+          description: formData.projectDescription || '프로젝트 설명', // 빈 문자열이면 기본값 설정
+          startDate: formData.startDate,
+          draftDeadline: formData.draftDeadline,
+          deadline: formData.finalDeadline,  // finalDeadline → deadline
+          totalPrice: parseInt(formData.budget), // budget → totalPrice
+
+          // Client Info (guests 배열로 매핑) - 전화번호는 필수, 이름/이메일은 선택
+          guests: clientPhones
+            .filter(p => p.phone.trim() !== '')
+            .map(p => ({
+              name: p.name.trim() || '고객', // 이름이 없으면 기본값
+              email: p.email.trim() || 'guest@example.com', // 이메일이 없으면 기본값
+              phone: p.phone.replace(/-/g, '') // 하이픈 제거
+            })),
+
+          // File Provision - boolean 타입으로 변환
+          originalFileProvided: formData.sourceFileProvision === 'yes',
+
+          // Revision Settings
+          modLimit: parseInt(formData.revisionCount), // revisionCount → modLimit
+          additionalModFee: parseInt(formData.additionalRevisionFee), // additionalRevisionFee → additionalModFee
+          modCriteria: formData.revisionCriteria.replace(/<[^>]*>/g, ''), // HTML 태그 제거
+
+          // Payment Settings - paymentMethod 제거 (백엔드에서 지원하지 않음)
+          // 결제 정보는 payCheckPoints로만 관리
+          payCheckPoints: formData.paymentMethod === 'lump-sum'
+            ? [{
+                label: '일시불',
+                price: parseInt(formData.budget),
+                payDate: new Date().toISOString().split('T')[0] // YYYY-MM-DD 형식
+              }]
+            : installments.map(inst => ({
+                label: inst.name,
+                price: Math.round((inst.percentage / 100) * parseInt(formData.budget)),
+                payDate: new Date().toISOString().split('T')[0] // YYYY-MM-DD 형식
+              }))
+        };
+
+        console.log('프로젝트 생성 API 요청 데이터:', requestData);
+
+        // 실제 API 호출
+        const response = await projectApi.create(requestData);
+        console.log('프로젝트 생성 성공:', response);
+
+        // 완료 단계로 이동
+        setCurrentStep(4);
+      } catch (error: any) {
+        console.error('프로젝트 생성 실패:', error);
+
+        // 에러 메시지 설정
+        let errorMessage = '프로젝트 생성 중 오류가 발생했습니다.';
+
+        if (error.status === 400) {
+          errorMessage = '입력 데이터가 잘못되었습니다. 다시 확인해주세요.';
+        } else if (error.status === 401) {
+          errorMessage = '로그인이 필요합니다.';
+        } else if (error.status === 403) {
+          errorMessage = '프로젝트 생성 권한이 없습니다.';
+        } else if (error.status >= 500) {
+          errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+
+        setSubmitError(errorMessage);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
-        return formData.projectName && formData.startDate && 
-               formData.draftDeadline && formData.finalDeadline && formData.budget && formData.clientPhone && formData.sourceFileProvision;
+        const hasValidClients = clientPhones.some(p => p.phone.trim() !== '');
+        return formData.projectName && formData.startDate &&
+               formData.draftDeadline && formData.finalDeadline && formData.budget && hasValidClients && formData.sourceFileProvision;
       case 2:
         return formData.revisionCount && formData.additionalRevisionFee && formData.revisionCriteria;
       case 3:
@@ -494,20 +596,86 @@ const MultiStepProjectForm = () => {
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="clientPhone" className="mb-2.5 block">의뢰인 전화번호</Label>
-        <Input
-          id="clientPhone"
-          placeholder="010-0000-0000"
-          value={formData.clientPhone}
-          onChange={(e) => handleInputChange('clientPhone', e.target.value)}
-          onBlur={() => handleBlur('clientPhone')}
-        />
+        <div className="flex items-center justify-between">
+          <Label className="mb-2.5 block">의뢰인 전화번호</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addClientPhone}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            연락처 추가
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          {clientPhones.map((client, index) => (
+            <div key={client.id} className="p-4 border border-gray-200 rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-sm">클라이언트 {index + 1}</h4>
+                {clientPhones.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeClientPhone(client.id)}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 px-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-gray-600 mb-1 block">이름 (선택)</Label>
+                  <Input
+                    placeholder="홍길동"
+                    value={client.name}
+                    onChange={(e) => {
+                      updateClientPhone(client.id, 'name', e.target.value);
+                      handleBlur('clientPhones');
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-gray-600 mb-1 block">이메일 (선택)</Label>
+                  <Input
+                    placeholder="hong@example.com"
+                    type="email"
+                    value={client.email}
+                    onChange={(e) => {
+                      updateClientPhone(client.id, 'email', e.target.value);
+                      handleBlur('clientPhones');
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-gray-600 mb-1 block">전화번호 <span className="text-red-500">*</span></Label>
+                  <Input
+                    placeholder="010-0000-0000"
+                    value={client.phone}
+                    onChange={(e) => {
+                      updateClientPhone(client.id, 'phone', e.target.value);
+                      handleBlur('clientPhones');
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <div className="min-h-[32px]">
-          {getFieldError('clientPhone') && (
+          {getFieldError('clientPhones') && (
             <Alert variant="destructive" className="py-2 border-0 bg-transparent px-0 flex items-center gap-2 [&>svg]:static [&>svg]:translate-y-0 [&>svg~*]:pl-0">
               <AlertCircle className="h-4 w-4 flex-shrink-0 !text-red-500" />
               <AlertDescription className="text-xs leading-4 h-2.5 text-red-500">
-                {getFieldError('clientPhone')}
+                {getFieldError('clientPhones')}
               </AlertDescription>
             </Alert>
           )}
@@ -652,7 +820,12 @@ const MultiStepProjectForm = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">의뢰인 연락처</span>
-                  <span className="font-medium">{formData.clientPhone}</span>
+                  <span className="font-medium">
+                    {clientPhones
+                      .filter(p => p.phone.trim() !== '' && p.name.trim() !== '')
+                      .map(p => `${p.name} (${p.phone})`)
+                      .join(', ') || '연락처 없음'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">총 예산</span>
@@ -1145,6 +1318,14 @@ const MultiStepProjectForm = () => {
                 {currentStep === 4 && renderStep4()}
               </div>
 
+              {/* 에러 메시지 표시 */}
+              {submitError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{submitError}</AlertDescription>
+                </Alert>
+              )}
+
               {/* Navigation Buttons */}
               {currentStep < 4 ? (
               <div className="flex justify-between">
@@ -1152,6 +1333,7 @@ const MultiStepProjectForm = () => {
                   <Button
                     variant="outline"
                     onClick={prevStep}
+                    disabled={isSubmitting}
                     className="flex items-center cursor-pointer"
                   >
                     <ChevronLeft size={16} className="mr-1" />
@@ -1164,6 +1346,7 @@ const MultiStepProjectForm = () => {
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
+                    disabled={isSubmitting}
                     className="bg-gray-400 text-white border-gray-400 hover:bg-gray-500 hover:text-white cursor-pointer"
                   >
                     임시저장
@@ -1171,6 +1354,7 @@ const MultiStepProjectForm = () => {
                   {currentStep < totalSteps ? (
                     <Button
                       onClick={nextStep}
+                      disabled={isSubmitting}
                       className="flex items-center text-white bg-black hover:bg-gray-700 cursor-pointer"
                     >
                       다음
@@ -1179,10 +1363,20 @@ const MultiStepProjectForm = () => {
                   ) : (
                     <Button
                       onClick={handleSubmit}
+                      disabled={isSubmitting}
                       className="flex items-center text-white bg-black hover:bg-gray-700 cursor-pointer"
                     >
-                      <CheckCircle size={16} className="mr-1" />
-                      프로젝트 생성
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          생성 중...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={16} className="mr-1" />
+                          프로젝트 생성
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>

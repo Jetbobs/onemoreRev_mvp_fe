@@ -83,8 +83,17 @@ export const projectApi = {
     apiFetch(`/api/v1/project/info?projectId=${projectId}`),
 
   create: (projectData: any) =>
-    apiFetch('/api/v1/project/create', {
+    apiFetch('/api/v1/project/new', {
       method: 'POST',
       body: projectData
+    })
+};
+
+// 리비전 관련 API
+export const revisionApi = {
+  createNext: (projectId: string) =>
+    apiFetch('/api/v1/revision/new', {
+      method: 'POST',
+      body: { projectId: parseInt(projectId) }
     })
 };

@@ -45,6 +45,46 @@ export function ImageModal({
   const [activePinId, setActivePinId] = useState<string | null>(null)
   const imageRef = useRef<HTMLImageElement>(null)
 
+  // 텍스트에리어 위치 계산 함수
+  const getCommentBoxPosition = (pin: { x: number; y: number }) => {
+    if (!imageRef.current) return { left: '50%', top: '50%', transform: 'translateX(-50%)' }
+
+    const imgRect = imageRef.current.getBoundingClientRect()
+    const containerWidth = 320 // 텍스트에리어 카드 너비 (w-80 = 320px)
+
+    // 핀의 실제 픽셀 위치
+    const pinX = pin.x * imgRect.width
+    const pinY = pin.y * imgRect.height
+
+    // 화면 경계 체크를 위한 위치 계산
+    let left = pin.x * 100 // 기본적으로 핀의 x 위치
+    let transform = 'translateX(-50%)' // 중앙 정렬
+
+    // 좌측 경계 체크
+    if (pinX < containerWidth / 2) {
+      left = 0
+      transform = 'translateX(0)'
+    }
+
+    // 우측 경계 체크
+    if (pinX > imgRect.width - containerWidth / 2) {
+      left = 100
+      transform = 'translateX(-100%)'
+    }
+
+    // 상하 위치 - 핀 아래쪽에 배치, 하단 경계 고려
+    let top = pin.y * 100 + 8
+    if (pin.y > 0.7) { // 하단 30% 영역에 있으면 핀 위쪽에 배치
+      top = pin.y * 100 - 25 // 카드 높이만큼 위로
+    }
+
+    return {
+      left: `${left}%`,
+      top: `${top}%`,
+      transform
+    }
+  }
+
   const trackPins = pins
 
   const handleImageClick = (event: React.MouseEvent<HTMLImageElement>) => {
@@ -185,7 +225,10 @@ export function ImageModal({
             
             {/* 새 핀 코멘트 입력 */}
             {newPin && (
-              <Card className="absolute bottom-4 right-4 w-80 z-30">
+              <Card
+                className="absolute w-80 z-30"
+                style={getCommentBoxPosition(newPin)}
+              >
                 <CardContent className="p-4">
                   <div className="mb-3">
                     <Badge variant="secondary" className="text-sm">

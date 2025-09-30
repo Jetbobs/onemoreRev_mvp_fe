@@ -99,12 +99,13 @@ export default function ProjectsNewPage() {
           startDate: formatDate(project.startDate),
           endDate: formatDate(project.deadline),
           revisions: project.modLimit || 0,
-          usedRevisions: project.revisionCount || 0,
+          usedRevisions: Math.max((project.revisionCount || 0) - 1, 0), // 백엔드에서 1로 초기화되므로 -1
           lastUpdated: formatDate(project.updatedAt),
           budget: `${project.totalPrice?.toLocaleString() || 0}원`,
-          lastRevisionNo: project.lastRevision?.revNo || 1
+          lastRevisionNo: project.lastRevision?.revNo || 0
         }));
-        
+
+        console.log('매핑된 프로젝트 데이터:', mappedProjects);
         setProjects(mappedProjects);
       } else {
         throw new Error(data.message || '프로젝트 목록을 불러올 수 없습니다.');
@@ -382,7 +383,7 @@ export default function ProjectsNewPage() {
                   <Button
                     className="w-full cursor-pointer"
                     variant="outline"
-                    onClick={() => router.push(`/revision-new?projectId=${project.id}&revNo=${project.lastRevisionNo || 1}`)}
+                    onClick={() => router.push(`/revision-new?projectId=${project.id}&revNo=${Math.max(project.lastRevisionNo || 0, 1)}`)}
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     상세보기

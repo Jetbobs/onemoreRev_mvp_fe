@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, MessageSquare, Plus, Maximize2, AlertCircle 
 import { ImageModal } from '@/components/image-modal'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { revisionApi } from '@/lib/api'
 
 interface Track {
   id: string
@@ -281,21 +282,10 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
     }
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/revision/new`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          projectId: parseInt(projectId || '0')
-        }),
-        credentials: 'include'
-      })
+      console.log('🔄 다음 리비전 생성 시작 - projectId:', projectId)
 
-      if (!response.ok) throw new Error('다음 리비전 생성 실패')
-
-      const result = await response.json()
-      console.log('다음 리비전 생성 API 응답:', result)
+      const result = await revisionApi.createNext(projectId || '0')
+      console.log('✅ 다음 리비전 생성 API 응답:', result)
 
       alert('다음 리비전이 생성되었습니다')
 
@@ -309,9 +299,23 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
 
       router.push(`/revision-new?${params.toString()}`)
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('다음 리비전 생성 실패:', error)
-      alert('다음 리비전 생성에 실패했습니다. 다시 시도해주세요.')
+
+      // ApiError의 경우 상세 정보 출력
+      if (error.name === 'ApiError') {
+        console.error('API 에러 상세:', {
+          status: error.status,
+          data: error.data,
+          message: error.message
+        })
+
+        // 백엔드 에러 메시지 표시
+        const errorMessage = error.data?.message || error.message || '다음 리비전 생성에 실패했습니다.'
+        alert(`다음 리비전 생성 실패: ${errorMessage}`)
+      } else {
+        alert('다음 리비전 생성에 실패했습니다. 다시 시도해주세요.')
+      }
     }
   }
 
@@ -385,26 +389,53 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
 
   // 파일 업로드 관련 함수들
   const handleFileSelect = (file: File, trackId: string) => {
+    console.log('📁 파일 선택됨:', file.name, 'trackId:', trackId)
+    console.log('📏 파일 크기:', file.size, '바이트')
+    console.log('🎭 파일 타입:', file.type)
+
     const reader = new FileReader()
     reader.onload = (e) => {
-      setTrackFiles(prev => ({
-        ...prev,
-        [trackId]: file
-      }))
+      console.log('✅ 파일 읽기 완료 - trackFiles 상태 업데이트')
+      setTrackFiles(prev => {
+        const newState = {
+          ...prev,
+          [trackId]: file
+        }
+        console.log('📋 새로운 trackFiles 상태:', Object.keys(newState))
+        return newState
+      })
+    }
+    reader.onerror = (e) => {
+      console.error('❌ 파일 읽기 실패:', e)
     }
     reader.readAsDataURL(file)
   }
 
   const handleTrackImageClick = (trackId: string) => {
-    if (!canEditTrack()) return
+    console.log('🖼️ 이미지 클릭 - trackId:', trackId)
+    console.log('📋 canEditTrack():', canEditTrack())
+    console.log('🔑 code:', code)
+    console.log('📄 revision status:', revision?.status)
 
+    if (!canEditTrack()) {
+      console.log('❌ 편집 권한 없음 - 파일 선택 불가')
+      return
+    }
+
+    console.log('✅ 편집 권한 확인 - 파일 선택 시작')
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'image/*'
     input.onchange = (e) => {
+      console.log('🔄 파일 input 변경 감지')
       const target = e.target as HTMLInputElement
+      console.log('📂 선택된 파일 개수:', target.files?.length || 0)
+
       if (target.files && target.files.length > 0) {
+        console.log('📄 선택된 파일:', target.files[0].name)
         handleFileSelect(target.files[0], trackId)
+      } else {
+        console.log('❌ 파일이 선택되지 않음')
       }
     }
     input.click()
@@ -454,6 +485,60 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
       const result = await response.json()
 
       if (result.success) {
+        window.location.reload()
+      } else {
+        throw new Error(result.message || '트랙 추가 실패')
+      }
+
+    } catch (error: any) {
+      console.error('트랙 추가 오류:', error)
+      alert(`트랙 추가에 실패했습니다: ${error.message}`)
+    } finally {
+      setIsAddingTrack(false)
+      setNewTrackName('')
+    }
+  }
+
+  const handleAddTrackWithName = async (trackName: string) => {
+    if (!trackName.trim() || !projectId) return
+
+    try {
+      setIsAddingTrack(true)
+
+      const requestData = {
+        projectId: parseInt(projectId),
+        name: trackName.trim()
+      }
+
+      console.log('🚀 트랙 추가 API 요청 시작')
+      console.log('📋 요청 데이터:', requestData)
+      console.log('🌐 API URL:', `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/track/add`)
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/track/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData),
+        credentials: 'include'
+      })
+
+      console.log('트랙 추가 응답:', response.status, response.statusText)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ 트랙 추가 실패!')
+        console.error('상태 코드:', response.status)
+        console.error('응답 내용:', errorText)
+        alert(`트랙 추가 실패 (${response.status}): ${errorText}`)
+        throw new Error(`트랙 추가 실패: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('트랙 추가 결과:', result)
+
+      if (result.success) {
+        alert('트랙이 성공적으로 추가되었습니다!')
         window.location.reload()
       } else {
         throw new Error(result.message || '트랙 추가 실패')
@@ -751,8 +836,25 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                               </div>
                             </div>
                           ) : (
-                            <div className="bg-gray-100 rounded-lg h-48 flex items-center justify-center">
-                              <p className="text-gray-500">파일 없음</p>
+                            <div
+                              className={`bg-gray-100 rounded-lg h-48 flex items-center justify-center ${
+                                canEditTrack() ? 'cursor-pointer hover:bg-gray-200 border-2 border-dashed border-gray-300' : ''
+                              }`}
+                              onClick={() => canEditTrack() && handleTrackImageClick(track.id)}
+                              onDragOver={handleDragOver}
+                              onDragLeave={handleDragLeave}
+                              onDrop={(e) => handleDrop(e, track.id)}
+                            >
+                              <div className="text-center">
+                                <p className="text-gray-500 mb-2">
+                                  {canEditTrack() ? '클릭하여 이미지 업로드' : '파일 없음'}
+                                </p>
+                                {canEditTrack() && (
+                                  <p className="text-xs text-gray-400">
+                                    또는 파일을 드래그하여 놓으세요
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           )}
                         </CardContent>
@@ -767,11 +869,14 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                 <div className="text-center mt-6">
                   <Button
                     variant="outline"
-                    onClick={() => {
+                    onClick={async () => {
                       const trackName = prompt('새 트랙의 이름을 입력하세요:')
                       if (trackName && trackName.trim()) {
                         setNewTrackName(trackName.trim())
-                        handleAddTrack()
+                        // 상태 업데이트 후 handleAddTrack 호출
+                        await new Promise(resolve => setTimeout(resolve, 0))
+                        console.log('트랙 추가 시작, projectId:', projectId, 'revNo:', revNo, 'trackName:', trackName.trim())
+                        await handleAddTrackWithName(trackName.trim())
                       }
                     }}
                     disabled={isAddingTrack}
