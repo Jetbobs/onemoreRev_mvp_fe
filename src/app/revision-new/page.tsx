@@ -56,6 +56,9 @@ function RevisionPageContent() {
   const code = searchParams.get('code')
   const tabParam = searchParams.get('tab')
 
+  console.log('[revision-new] URL 파라미터:', { projectId, revNo, code, tabParam })
+  console.log('[revision-new] 게스트 모드:', code ? 'YES' : 'NO')
+
   // URL의 tab 파라미터를 기반으로 activeTab 상태 설정
   const [activeTab, setActiveTab] = useState(() => {
     const validTabs = ['overview', 'drafts', 'files']
@@ -85,14 +88,25 @@ function RevisionPageContent() {
   }, [projectId, searchParams, code, tabParam, router])
 
   useEffect(() => {
+    console.log('[revision-new] useEffect 실행, projectId:', projectId, 'revNo:', revNo, 'code:', code)
     if (projectId) {
-      loadRevision()
-      loadProjectDetail()
+      const loadData = async () => {
+        console.log('[revision-new] loadRevision 호출 전')
+        await loadRevision()
+        console.log('[revision-new] loadRevision 완료, loadProjectDetail 호출 전')
+        await loadProjectDetail()
+        console.log('[revision-new] loadProjectDetail 완료')
+      }
+      loadData()
     }
   }, [projectId, revNo, code])
 
   async function loadRevision() {
+    console.log('[revision-new] ===== loadRevision 함수 시작 =====')
+    console.log('[revision-new] projectId:', projectId, 'revNo:', revNo)
+
     if (!projectId || !revNo) {
+      console.error('[revision-new] projectId 또는 revNo가 없음!')
       setError('projectId와 revNo 파라미터가 필요합니다.')
       setIsLoading(false)
       return
@@ -100,6 +114,7 @@ function RevisionPageContent() {
 
     try {
       setError(null)
+      console.log('[revision-new] API 호출 시작, projectId:', projectId, 'revNo:', revNo)
 
       let apiUrl = `/api/v1/revision/info?projectId=${encodeURIComponent(projectId)}&revNo=${encodeURIComponent(revNo)}`
       if (code) {
@@ -116,6 +131,12 @@ function RevisionPageContent() {
       console.log('[revision-new] info response:', data)
 
       const revisionData = data?.revision || data
+      console.log('[revision-new] ===== loadRevision 결과 =====')
+      console.log('[revision-new] revisionData:', revisionData)
+      console.log('[revision-new] revisionData.code:', revisionData.code)
+      console.log('[revision-new] revisionData.invitationCode:', revisionData.invitationCode)
+      console.log('[revision-new] ===========================')
+      // 백엔드에서 이미 invitationCode로 반환하므로 그대로 사용
       setRevision(revisionData)
 
     } catch (err: any) {
@@ -125,6 +146,7 @@ function RevisionPageContent() {
   }
 
   async function loadProjectDetail() {
+    console.log('[revision-new] ===== loadProjectDetail 시작 =====')
     try {
       console.log('[revision-new] 프로젝트 정보 로딩 시작, projectId:', projectId);
 
@@ -182,30 +204,8 @@ function RevisionPageContent() {
           guests: backendProject.guests || []
         });
 
-        // revision 정보 설정 (project info에서 revision 데이터 추출)
-        const projectRevisions = backendProject.revisions || [];
-        const currentRevision = projectRevisions.find((rev: any) => rev.revNo === parseInt(revNo));
-
-        if (currentRevision) {
-          console.log('[revision-new] revision 정보 설정:', currentRevision);
-          // revision에 tracks와 code 정보 추가
-          const revisionWithTracks = {
-            ...currentRevision,
-            tracks: backendProject.tracks || [],
-            invitationCode: backendProject.code  // code를 invitationCode로 매핑
-          };
-          setRevision(revisionWithTracks);
-        } else {
-          console.warn('[revision-new] 해당 revNo의 revision을 찾을 수 없음:', revNo, 'available revisions:', projectRevisions.map((r: any) => r.revNo));
-          // revision이 없어도 tracks는 보여줘야 하므로 기본 revision 생성
-          setRevision({
-            id: 0,
-            revNo: parseInt(revNo),
-            status: 'prepare',
-            tracks: backendProject.tracks || [],
-            invitationCode: backendProject.code  // code를 invitationCode로 매핑
-          });
-        }
+        // loadRevision에서 이미 revision을 설정했으므로 여기서는 설정하지 않음
+        console.log('[revision-new] loadProjectDetail: revision은 loadRevision에서 이미 설정됨, 덮어쓰지 않음');
       } else {
         console.warn('[revision-new] 프로젝트 데이터 없음 - API 응답:', data);
         throw new Error(data.message || '프로젝트 데이터가 없습니다.');
@@ -311,7 +311,9 @@ function RevisionPageContent() {
     }
 
     const currentUrl = window.location.origin;
-    const guestUrl = `${currentUrl}/revision-new?projectId=${projectId}&revNo=${revNo}&code=${invitationCode}&tab=${activeTab}`;
+    const guestUrl = `${currentUrl}/revision-new?projectId=${projectId}&revNo=${revNo}&code=${encodeURIComponent(invitationCode)}&tab=${activeTab}`;
+    console.log('[openGuestPage] invitationCode:', invitationCode);
+    console.log('[openGuestPage] guestUrl:', guestUrl);
     window.open(guestUrl, '_blank');
   };
 
@@ -473,12 +475,15 @@ function RevisionPageContent() {
               </p>
             </div>
             <div className="flex gap-2">
-              {!code && revision?.invitationCode && (
-                <Button variant="outline" size="sm" onClick={openGuestPage}>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  게스트페이지 열기
-                </Button>
-              )}
+              {(() => {
+                console.log('[게스트버튼] code:', code, 'revision?.invitationCode:', revision?.invitationCode, 'revision:', revision);
+                return !code && revision?.invitationCode && (
+                  <Button variant="outline" size="sm" onClick={openGuestPage}>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    게스트페이지 열기
+                  </Button>
+                );
+              })()}
               <Button variant="outline" size="sm">
                 <Edit className="h-4 w-4 mr-2" />
                 편집
