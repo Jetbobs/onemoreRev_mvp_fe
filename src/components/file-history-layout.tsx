@@ -336,120 +336,176 @@ const FileHistoryLayout: React.FC<FileHistoryLayoutProps> = ({ completedFiles = 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {viewMode === 'list' ? (
-          /* List View */
+          /* List View - 리비전별로 표시 */
           <div className="grid gap-4">
-            {filteredItems.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group"
-              >
-                <div className="flex gap-4 p-4">
-                  {/* Thumbnail Image */}
-                  <div className="relative flex-shrink-0 self-center overflow-hidden rounded-lg">
-                    <img
-                      src={item.thumbnail}
-                      alt="썸네일"
-                      className="w-80 h-44 object-cover cursor-pointer hover:scale-105 transition-transform duration-300 ease-out"
-                      onMouseEnter={() => setHoveredItem(item.id)}
-                      onMouseLeave={() => setHoveredItem(null)}
-                    />
-                    {/* Hover Overlay */}
-                    {hoveredItem === item.id && (
-                      <div className="absolute inset-0 bg-black bg-opacity-20 transition-opacity duration-300 pointer-events-none"></div>
-                    )}
-                  </div>
+            {historyData && historyData.revisions && historyData.revisions.length > 0 ? (
+              historyData.revisions.map((revision: any) => {
+                const getStatusText = (status: string) => {
+                  switch(status) {
+                    case 'prepare': return '준비중';
+                    case 'submitted': return '제출됨';
+                    case 'reviewed': return '검토됨';
+                    default: return status;
+                  }
+                };
 
-                  {/* File Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1 pr-4">
-                        {/* Date Title */}
-                        <div className="flex items-center gap-2 mb-3">
-                          <Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                            {item.date}
-                          </h3>
+                const getStatusColor = (status: string) => {
+                  switch(status) {
+                    case 'prepare': return 'bg-yellow-100 text-yellow-800';
+                    case 'submitted': return 'bg-blue-100 text-blue-800';
+                    case 'reviewed': return 'bg-green-100 text-green-800';
+                    default: return 'bg-gray-100 text-gray-800';
+                  }
+                };
+
+                const formatDateTime = (dateString: string) => {
+                  const date = new Date(dateString);
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const day = String(date.getDate()).padStart(2, '0');
+                  const hours = String(date.getHours()).padStart(2, '0');
+                  const minutes = String(date.getMinutes()).padStart(2, '0');
+                  return `${month}/${day} ${hours}:${minutes}`;
+                };
+
+                const formatFileSize = (bytes: number) => {
+                  if (bytes < 1024) return `${bytes} B`;
+                  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                };
+
+                const getTotalSize = () => {
+                  const total = revision.files.reduce((sum: number, file: any) => sum + file.fileSize, 0);
+                  return formatFileSize(total);
+                };
+
+                // 첫 번째 파일의 이미지를 썸네일로 사용
+                const thumbnailUrl = revision.files.length > 0
+                  ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${revision.files[0].storedFilename}`
+                  : null;
+
+                return (
+                  <div
+                    key={revision.id}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group"
+                  >
+                    <div className="flex gap-4 p-4">
+                      {/* Thumbnail Image */}
+                      {thumbnailUrl ? (
+                        <div className="relative flex-shrink-0 self-center overflow-hidden rounded-lg">
+                          <img
+                            src={thumbnailUrl}
+                            alt="썸네일"
+                            className="w-80 h-44 object-cover cursor-pointer hover:scale-105 transition-transform duration-300 ease-out"
+                            onMouseEnter={() => setHoveredItem(revision.id)}
+                            onMouseLeave={() => setHoveredItem(null)}
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement;
+                              img.style.display = 'none';
+                            }}
+                          />
+                          {/* Hover Overlay */}
+                          {hoveredItem === revision.id && (
+                            <div className="absolute inset-0 bg-black bg-opacity-20 transition-opacity duration-300 pointer-events-none"></div>
+                          )}
                         </div>
-                        
-                        {/* Select All Button */}
-                        <div className="flex items-center justify-between mb-2">
-                          <button
-                            onClick={() => handleSelectAllFiles(item.id)}
-                            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
-                          >
-                            {item.files.every(f => f.selected) ? '전체 선택 해제' : '전체 선택'}
-                          </button>
-                          <button className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline">
-                            다운로드
-                          </button>
+                      ) : (
+                        <div className="flex-shrink-0 self-center w-80 h-44 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                          <span className="text-gray-400 text-sm">이미지 없음</span>
                         </div>
-                        
-                        {/* File List */}
-                        <div className="space-y-2 mb-3">
-                          {item.files.map((file) => (
-                            <div key={file.id} className="flex items-center gap-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 p-1 -ml-1 rounded">
-                              {/* File Checkbox */}
-                              <button
-                                onClick={() => handleSelectFile(item.id, file.id)}
-                                className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                                  file.selected 
-                                    ? 'bg-blue-600 border-blue-600' 
-                                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
-                                } flex items-center justify-center transition-colors`}
-                              >
-                                {file.selected && (
-                                  <Check className="w-3 h-3 text-white" />
-                                )}
-                              </button>
-                              {getFileIcon(file.type)}
-                              <span className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer flex-1">
-                                {file.name}
+                      )}
+
+                      {/* File Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 pr-4">
+                            {/* Revision Title */}
+                            <div className="flex items-center gap-3 mb-3">
+                              <h3 className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                Rev {revision.revNo}
+                              </h3>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(revision.status)}`}>
+                                {getStatusText(revision.status)}
                               </span>
-                              <span className="text-gray-500 dark:text-gray-500 text-xs">
-                                {file.size}
-                              </span>
-                              {/* Download Button */}
-                              <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors">
-                                <Download className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                              </button>
                             </div>
-                          ))}
-                        </div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {formatDateTime(revision.createdAt)}
+                              </span>
+                            </div>
 
-                        {/* Summary Info */}
-                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500 pt-2 border-t border-gray-100 dark:border-gray-700">
-                          <div className="flex items-center gap-1">
-                            <Folder className="w-3 h-3" />
-                            <span>{item.files.length}개 파일</span>
+                            {revision.files && revision.files.length > 0 ? (
+                              <>
+                                {/* Select All Button */}
+                                <div className="flex items-center justify-between mb-2">
+                                  <button className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline">
+                                    전체 선택
+                                  </button>
+                                  <button className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline">
+                                    다운로드
+                                  </button>
+                                </div>
+
+                                {/* File List */}
+                                <div className="space-y-2 mb-3">
+                                  {revision.files.map((file: any) => {
+                                    const track = revision.createdTracks.find((t: any) => t.id === file.trackId);
+                                    return (
+                                      <div key={file.id} className="flex items-center gap-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 p-1 -ml-1 rounded">
+                                        <FileImage className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                        <span className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer flex-1 truncate">
+                                          {track?.name || `트랙 ${file.trackId}`}: {file.originalFilename}
+                                        </span>
+                                        <span className="text-gray-500 dark:text-gray-500 text-xs">
+                                          {formatFileSize(file.fileSize)}
+                                        </span>
+                                        {/* Download Button */}
+                                        <button
+                                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                                          onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${file.storedFilename}`;
+                                            link.download = file.originalFilename;
+                                            link.click();
+                                          }}
+                                        >
+                                          <Download className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Summary Info */}
+                                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                  <div className="flex items-center gap-1">
+                                    <Folder className="w-3 h-3" />
+                                    <span>{revision.files.length}개 파일</span>
+                                  </div>
+                                  <span>•</span>
+                                  <div className="flex items-center gap-1">
+                                    <HardDrive className="w-3 h-3" />
+                                    <span>총 {getTotalSize()}</span>
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                                파일이 없습니다
+                              </div>
+                            )}
                           </div>
-                          <span>•</span>
-                          <div className="flex items-center gap-1">
-                            <HardDrive className="w-3 h-3" />
-                            <span>총 {item.totalSize}</span>
-                          </div>
-                          <span>•</span>
-                          <span>마지막 접근: {item.lastAccessed}</span>
                         </div>
-                      </div>
-                      
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleRemoveItem(item.id)}
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors opacity-0 hover:opacity-100"
-                          title="삭제"
-                        >
-                          <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                        </button>
-                        <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                          <MoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                        </button>
                       </div>
                     </div>
                   </div>
-                </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                리비전이 없습니다
               </div>
-            ))}
+            )}
           </div>
         ) : (
           /* Grid Gallery View - 리비전별로 표시 */
