@@ -1,11 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MoreVertical, X, Trash2, Search, Filter, Folder, File, FileImage, Download, Calendar, HardDrive, Eye, LayoutGrid, LayoutList, Check } from 'lucide-react';
 
 interface FileHistoryLayoutProps {
   completedFiles?: any[];
+  projectId?: string;
 }
 
-const FileHistoryLayout: React.FC<FileHistoryLayoutProps> = ({ completedFiles = [] }) => {
+const FileHistoryLayout: React.FC<FileHistoryLayoutProps> = ({ completedFiles = [], projectId }) => {
+  const [historyData, setHistoryData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 백엔드에서 히스토리 데이터 가져오기
+  useEffect(() => {
+    if (projectId) {
+      loadProjectHistory();
+    }
+  }, [projectId]);
+
+  async function loadProjectHistory() {
+    if (!projectId) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      console.log('[file-history] 히스토리 로딩 시작, projectId:', projectId);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/project/history?projectId=${projectId}`,
+        { credentials: 'include' }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[file-history] 히스토리 데이터:', data);
+      console.log('[file-history] 히스토리 JSON:', JSON.stringify(data, null, 2));
+
+      if (!data.success) {
+        throw new Error(data.message || '히스토리 로드 실패');
+      }
+
+      setHistoryData(data);
+
+    } catch (err: any) {
+      console.error('[file-history] 히스토리 로드 실패:', err);
+      setError(`히스토리를 불러올 수 없습니다: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   // 완료된 파일들을 기존 items 형식으로 변환
   const convertCompletedFilesToItems = () => {
     if (completedFiles.length === 0) return [];
@@ -204,6 +252,28 @@ const FileHistoryLayout: React.FC<FileHistoryLayoutProps> = ({ completedFiles = 
     item.files.some(file => file.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // 로딩 중이거나 에러가 있을 때
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">히스토리를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -212,7 +282,10 @@ const FileHistoryLayout: React.FC<FileHistoryLayoutProps> = ({ completedFiles = 
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <Folder className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">파일 히스토리</h1>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                파일 히스토리
+                {historyData && ` - ${historyData.projectName}`}
+              </h1>
             </div>
             <div className="flex items-center gap-4">
               {/* View Mode Toggle */}
@@ -379,43 +452,121 @@ const FileHistoryLayout: React.FC<FileHistoryLayoutProps> = ({ completedFiles = 
             ))}
           </div>
         ) : (
-          /* Grid Gallery View */
-          <div className="grid grid-cols-4 gap-3">
-            {filteredItems.map((item) => (
-              <div
-                key={item.id}
-                className="group relative cursor-pointer"
-                onMouseEnter={() => setHoveredItem(item.id)}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleSelectItem(item.id)}
-              >
-                <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 cursor-pointer">
-                  <img
-                    src={item.thumbnail}
-                    alt="썸네일"
-                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
-                  />
-                  
-                  {/* Hover Overlay */}
-                  {hoveredItem === item.id && (
-                    <div className="absolute inset-0 bg-black bg-opacity-40 rounded-lg transition-opacity pointer-events-none"></div>
-                  )}
-                  
-                  {/* Selection Checkbox */}
-                  <div className={`absolute top-2 left-2 w-6 h-6 rounded border-2 ${
-                    selectedItems.includes(item.id) 
-                      ? 'bg-blue-600 border-blue-600' 
-                      : 'bg-white/80 border-gray-300'
-                    } flex items-center justify-center transition-opacity ${
-                    hoveredItem === item.id || selectedItems.includes(item.id) ? 'opacity-100' : 'opacity-0'
-                  }`}>
-                    {selectedItems.includes(item.id) && (
-                      <Check className="w-4 h-4 text-white" />
+          /* Grid Gallery View - 리비전별로 표시 */
+          <div className="space-y-8">
+            {historyData && historyData.revisions && historyData.revisions.length > 0 ? (
+              historyData.revisions.map((revision: any) => {
+                const getStatusText = (status: string) => {
+                  switch(status) {
+                    case 'prepare': return '준비중';
+                    case 'submitted': return '제출됨';
+                    case 'reviewed': return '검토됨';
+                    default: return status;
+                  }
+                };
+
+                const getStatusColor = (status: string) => {
+                  switch(status) {
+                    case 'prepare': return 'bg-yellow-100 text-yellow-800';
+                    case 'submitted': return 'bg-blue-100 text-blue-800';
+                    case 'reviewed': return 'bg-green-100 text-green-800';
+                    default: return 'bg-gray-100 text-gray-800';
+                  }
+                };
+
+                const formatDateTime = (dateString: string) => {
+                  const date = new Date(dateString);
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const day = String(date.getDate()).padStart(2, '0');
+                  const hours = String(date.getHours()).padStart(2, '0');
+                  const minutes = String(date.getMinutes()).padStart(2, '0');
+                  return `${month}/${day} ${hours}:${minutes}`;
+                };
+
+                return (
+                  <div key={revision.id} className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
+                    {/* 리비전 헤더 */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        Rev {revision.revNo}
+                      </h3>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(revision.status)}`}>
+                        {getStatusText(revision.status)}
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {formatDateTime(revision.createdAt)}
+                      </span>
+                    </div>
+
+                    {/* 파일 그리드 */}
+                    {revision.files && revision.files.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {revision.files.map((file: any) => {
+                          const track = revision.createdTracks.find((t: any) => t.id === file.trackId);
+                          return (
+                            <div
+                              key={file.id}
+                              className="group relative"
+                            >
+                              <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                                <img
+                                  src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${file.storedFilename}`}
+                                  alt={file.originalFilename}
+                                  className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
+                                  onError={(e) => {
+                                    const img = e.target as HTMLImageElement;
+                                    img.style.display = 'none';
+                                    const parent = img.parentElement;
+                                    if (parent) {
+                                      parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">로드 실패</div>';
+                                    }
+                                  }}
+                                />
+
+                                {/* Hover Overlay with Download Button */}
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
+                                  <button
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 bg-white rounded-full hover:bg-gray-100"
+                                    onClick={() => {
+                                      // 다운로드 기능
+                                      const link = document.createElement('a');
+                                      link.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${file.storedFilename}`;
+                                      link.download = file.originalFilename;
+                                      link.click();
+                                    }}
+                                    title="다운로드"
+                                  >
+                                    <Download className="w-5 h-5 text-gray-700" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* 파일 정보 */}
+                              <div className="mt-2">
+                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                  {track?.name || `트랙 ${file.trackId}`}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  {file.originalFilename}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                        파일이 없습니다
+                      </div>
                     )}
                   </div>
-                </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                리비전이 없습니다
               </div>
-            ))}
+            )}
           </div>
         )}
 

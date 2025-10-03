@@ -141,7 +141,7 @@ export function RevisionFiles({ projectId, revNo, completedFiles, revision, acti
       </Card>
 
       {/* 파일 히스토리 레이아웃 */}
-      <FileHistoryLayout completedFiles={completedFiles} />
+      <FileHistoryLayout completedFiles={completedFiles} projectId={projectId} />
 
     </div>
   )
