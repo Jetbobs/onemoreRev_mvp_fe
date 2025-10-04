@@ -10,7 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { AlertCircle, ChevronLeft, ChevronRight, MessageSquare, Plus, Maximize2 } from 'lucide-react'
 import { ImageModal } from '@/components/image-modal'
-import { projectApi } from '@/lib/api'
+import { projectApi, toolApi } from '@/lib/api'
+import { isSourceFile, fileToBase64 as utilFileToBase64 } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -90,6 +91,8 @@ function RevisionPageContent() {
   
   // 파일 업로드 관련 상태
   const [trackFiles, setTrackFiles] = useState<{ [key: string]: File }>({})
+  const [trackSrcFiles, setTrackSrcFiles] = useState<{ [key: string]: File }>({}) // 원본 PSD/AI 파일
+  const [convertingTracks, setConvertingTracks] = useState<Set<string>>(new Set()) // 변환 중인 트랙
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   // 이미지 확대 모달 상태
@@ -411,17 +414,78 @@ function RevisionPageContent() {
   }
 
   // 파일 업로드 관련 함수들
-  const handleFileSelect = (file: File, trackId: string) => {
-    // 파일 미리보기를 위해 FileReader 사용
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      // 미리보기 이미지 업데이트 (실제 DOM 조작 대신 상태로 관리)
-      setTrackFiles(prev => ({
+  const handleFileSelect = async (file: File, trackId: string) => {
+    // PSD/AI 파일인지 확인
+    if (isSourceFile(file.name)) {
+      // 원본 파일 저장
+      setTrackSrcFiles(prev => ({
         ...prev,
         [trackId]: file
       }))
+
+      // 변환 시작
+      setConvertingTracks(prev => new Set(prev).add(trackId))
+
+      try {
+        // Base64로 변환
+        const base64Content = await utilFileToBase64(file)
+
+        // API 호출하여 PNG로 변환
+        const result = await toolApi.convertImage({
+          fileContent: base64Content,
+          outputFormat: 'png',
+          keepTempFiles: '0'
+        })
+
+        if (result.success && result.fileContent) {
+          // Base64를 Blob으로 변환
+          const base64Data = result.fileContent.split(',')[1] || result.fileContent
+          const byteCharacters = atob(base64Data)
+          const byteNumbers = new Array(byteCharacters.length)
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+          }
+          const byteArray = new Uint8Array(byteNumbers)
+          const blob = new Blob([byteArray], { type: 'image/png' })
+
+          // Blob을 File로 변환
+          const convertedFile = new File([blob], file.name.replace(/\.(psd|ai)$/i, '_converted.png'), { type: 'image/png' })
+
+          // 변환된 파일을 미리보기로 설정
+          setTrackFiles(prev => ({
+            ...prev,
+            [trackId]: convertedFile
+          }))
+        } else {
+          throw new Error(result.message || '변환 실패')
+        }
+      } catch (error) {
+        console.error('파일 변환 실패:', error)
+        alert(`파일 변환에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+        // 실패 시 원본 파일도 제거
+        setTrackSrcFiles(prev => {
+          const newState = { ...prev }
+          delete newState[trackId]
+          return newState
+        })
+      } finally {
+        setConvertingTracks(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(trackId)
+          return newSet
+        })
+      }
+    } else {
+      // 일반 이미지 파일
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setTrackFiles(prev => ({
+          ...prev,
+          [trackId]: file
+        }))
+      }
+      reader.readAsDataURL(file)
     }
-    reader.readAsDataURL(file)
   }
 
   const handleTrackImageClick = (trackId: string) => {
@@ -429,7 +493,7 @@ function RevisionPageContent() {
     
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = 'image/*'
+    input.accept = 'image/*,.psd,.ai'
     input.onchange = (e) => {
       const target = e.target as HTMLInputElement
       if (target.files && target.files.length > 0) {
@@ -469,15 +533,15 @@ function RevisionPageContent() {
       alert('업로드할 파일을 선택해주세요.')
       return
     }
-    
+
     setIsSubmitting(true)
-    
+
     try {
-      // 파일들을 base64로 변환
+      // 파일들을 base64로 변환 (srcFile 포함)
       const uploads = await Promise.all(
         Object.entries(trackFiles).map(async ([trackId, file]) => {
           const base64 = await fileToBase64(file)
-          return {
+          const uploadData: any = {
             trackId: parseInt(trackId),
             file: {
               original_filename: file.name,
@@ -486,6 +550,20 @@ function RevisionPageContent() {
               data: base64
             }
           }
+
+          // 원본 소스 파일(PSD/AI)이 있으면 함께 전송
+          if (trackSrcFiles[trackId]) {
+            const srcFile = trackSrcFiles[trackId]
+            const srcBase64 = await fileToBase64(srcFile)
+            uploadData.srcFile = {
+              original_filename: srcFile.name,
+              size: srcFile.size,
+              modified_datetime: new Date(srcFile.lastModified).toISOString(),
+              data: srcBase64
+            }
+          }
+
+          return uploadData
         })
       )
       
@@ -701,18 +779,24 @@ function RevisionPageContent() {
                             {track.name || track.title || '트랙'}
                           </h4>
                           
-                          {track.latestFile || trackFiles[track.id] ? (
+                          {track.latestFile || trackFiles[track.id] || convertingTracks.has(track.id) ? (
                             <div className="space-y-2">
-                              <div 
+                              <div
                                 className={`relative bg-gray-100 rounded-lg overflow-hidden ${
                                   canEditTrack() ? 'cursor-pointer hover:opacity-80' : ''
                                 }`}
-                                onClick={() => canEditTrack() && handleTrackImageClick(track.id)}
+                                onClick={() => canEditTrack() && !convertingTracks.has(track.id) && handleTrackImageClick(track.id)}
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, track.id)}
                               >
-                                {trackFiles[track.id] ? (
+                                {convertingTracks.has(track.id) ? (
+                                  // 변환 중 표시
+                                  <div className="w-full h-48 flex flex-col items-center justify-center bg-gray-50">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-3"></div>
+                                    <p className="text-sm text-gray-600">PSD/AI 파일 변환 중...</p>
+                                  </div>
+                                ) : trackFiles[track.id] ? (
                                   // 새로 선택된 파일 미리보기
                                   <img
                                     src={URL.createObjectURL(trackFiles[track.id])}

@@ -4,14 +4,14 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4
 interface ApiOptions {
   method?: string;
   headers?: Record<string, string>;
-  body?: any;
+  body?: unknown;
 }
 
 class ApiError extends Error {
   status: number;
-  data: any;
+  data: unknown;
 
-  constructor(message: string, status: number, data: any) {
+  constructor(message: string, status: number, data: unknown) {
     super(message);
     this.status = status;
     this.data = data;
@@ -58,7 +58,7 @@ export const authApi = {
       body: { email, password }
     }),
 
-  register: (userData: any) => 
+  register: (userData: Record<string, unknown>) =>
     apiFetch('/api/v1/register', {
       method: 'POST',
       body: userData
@@ -82,7 +82,7 @@ export const projectApi = {
   info: (projectId: string) =>
     apiFetch(`/api/v1/project/info?projectId=${projectId}`),
 
-  create: (projectData: any) =>
+  create: (projectData: Record<string, unknown>) =>
     apiFetch('/api/v1/project/new', {
       method: 'POST',
       body: projectData
@@ -95,5 +95,62 @@ export const revisionApi = {
     apiFetch('/api/v1/revision/new', {
       method: 'POST',
       body: { projectId: parseInt(projectId) }
+    })
+};
+
+// 파일 변환 관련 타입
+export interface ConvertImgRequest {
+  fileContent: string;
+  outputFormat: 'png' | 'jpg';
+  keepTempFiles?: string;
+}
+
+export interface ConvertImgResponse {
+  success: boolean;
+  message: string;
+  fileContent: string;
+  fileSize: number;
+  modifiedDate: Date;
+  outputFormat: string;
+}
+
+// 소스 파일 정보 타입
+export interface SrcFileInfo {
+  id: number;
+  trackId: number;
+  originalFilename: string;
+  storedFilename: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedAt: Date;
+}
+
+// 프로젝트 히스토리 리비전 타입 확장
+export interface ProjectHistoryRevision {
+  id: number;
+  revNo: number;
+  description?: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdTracks: Array<{ id: number; name: string }>;
+  files: Array<{
+    id: number;
+    trackId: number;
+    originalFilename: string;
+    storedFilename: string;
+    fileSize: number;
+    mimeType: string;
+    uploadedAt: Date;
+  }>;
+  srcFiles?: SrcFileInfo[];
+}
+
+// Tool API
+export const toolApi = {
+  convertImage: (data: ConvertImgRequest): Promise<ConvertImgResponse> =>
+    apiFetch('/api/tool/convert_img', {
+      method: 'POST',
+      body: data
     })
 };

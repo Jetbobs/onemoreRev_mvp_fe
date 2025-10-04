@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertCircle, ChevronLeft, Download } from 'lucide-react'
 import Image from 'next/image'
+import { downloadFile, getFileExtension } from '@/lib/utils'
 
 interface Track {
   id: number
@@ -21,6 +22,16 @@ interface RevisionFile {
   originalFilename: string
 }
 
+interface SrcFile {
+  id: number
+  trackId: number
+  originalFilename: string
+  storedFilename: string
+  fileSize: number
+  mimeType: string
+  uploadedAt: string
+}
+
 interface Revision {
   id: number
   revNo: number
@@ -28,6 +39,7 @@ interface Revision {
   createdAt: string
   files: RevisionFile[]
   createdTracks: Track[]
+  srcFiles?: SrcFile[]
 }
 
 interface HistoryData {
@@ -40,12 +52,14 @@ interface HistoryData {
 function HistoryPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  
+
   const [historyData, setHistoryData] = useState<HistoryData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [allTracks, setAllTracks] = useState<Track[]>([])
-  
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
+  const [isAllSelected, setIsAllSelected] = useState(false)
+
   const projectId = searchParams.get('projectId')
 
   useEffect(() => {
@@ -114,9 +128,9 @@ function HistoryPageContent() {
         setAllTracks(tracks)
       }
       
-    } catch (err: any) {
+    } catch (err) {
       console.error('히스토리 로드 실패:', err)
-      setError(`히스토리를 불러올 수 없습니다: ${err.message}`)
+      setError(`히스토리를 불러올 수 없습니다: ${(err as Error).message}`)
     } finally {
       setIsLoading(false)
     }
@@ -150,31 +164,89 @@ function HistoryPageContent() {
   }
 
   const handleDownload = async (filename: string, originalFilename: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${filename}`)
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.style.display = 'none'
-      a.href = url
-      a.download = originalFilename
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (error) {
-      console.error('다운로드 실패:', error)
-      alert('파일 다운로드에 실패했습니다.')
+    await downloadFile(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${filename}`,
+      originalFilename
+    )
+  }
+
+  const toggleFileSelection = (revisionId: number, trackId: number) => {
+    const fileKey = `${revisionId}-${trackId}`
+    setSelectedFiles(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(fileKey)) {
+        newSet.delete(fileKey)
+      } else {
+        newSet.add(fileKey)
+      }
+      return newSet
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedFiles(new Set())
+      setIsAllSelected(false)
+    } else {
+      const allFiles = new Set<string>()
+      historyData?.revisions.forEach(revision => {
+        revision.files.forEach(file => {
+          allFiles.add(`${revision.id}-${file.trackId}`)
+        })
+      })
+      setSelectedFiles(allFiles)
+      setIsAllSelected(true)
     }
+  }
+
+  const handleBulkDownload = async () => {
+    if (selectedFiles.size === 0) {
+      alert('다운로드할 파일을 선택해주세요.')
+      return
+    }
+
+    const filesToDownload: Array<{ filename: string; originalFilename: string }> = []
+
+    historyData?.revisions.forEach(revision => {
+      revision.files.forEach(file => {
+        const fileKey = `${revision.id}-${file.trackId}`
+        if (selectedFiles.has(fileKey)) {
+          filesToDownload.push({
+            filename: file.storedFilename,
+            originalFilename: file.originalFilename
+          })
+        }
+      })
+    })
+
+    for (const file of filesToDownload) {
+      await handleDownload(file.filename, file.originalFilename)
+      // 브라우저가 다운로드를 처리할 시간 확보
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+
+    alert(`${filesToDownload.length}개 파일 다운로드를 시작했습니다.`)
   }
 
   const renderTrackCell = (track: Track, revision: Revision) => {
     const revisionFile = revision.files.find(f => f.trackId === track.id)
-    
+    const srcFile = revision.srcFiles?.find(f => f.trackId === track.id)
+    const fileKey = `${revision.id}-${track.id}`
+    const isSelected = selectedFiles.has(fileKey)
+
     return (
       <td key={`${revision.id}-${track.id}`} className="p-3 border-r border-gray-200 text-center min-h-[80px]">
         {revisionFile ? (
           <div className="flex flex-col items-center space-y-1">
+            <div className="flex items-center gap-2 mb-1">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggleFileSelection(revision.id, track.id)}
+                className="w-4 h-4 cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
             <div className="relative w-full h-15 bg-gray-100 rounded border overflow-hidden group">
               <Image
                 src={`${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${revisionFile.storedFilename}`}
@@ -191,9 +263,9 @@ function HistoryPageContent() {
                   }
                 }}
               />
-              {/* 다운로드 버튼 */}
+              {/* 이미지 다운로드 버튼 */}
               <button
-                className="absolute top-1 right-1 p-1 h-6 w-6 bg-white/80 rounded hover:bg-white"
+                className="absolute top-1 right-1 p-1 h-6 w-6 bg-white/80 rounded hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation()
                   handleDownload(revisionFile.storedFilename, revisionFile.originalFilename)
@@ -202,8 +274,28 @@ function HistoryPageContent() {
               >
                 <Download className="h-3 w-3 text-gray-600" />
               </button>
+
+              {/* 원본 파일 다운로드 버튼 (PSD/AI) */}
+              {srcFile && (
+                <button
+                  className="absolute bottom-1 right-1 flex flex-col items-center justify-center w-7 h-7 bg-black/90 text-white rounded-full hover:bg-black transition-all hover:scale-110 border-2 border-white shadow-lg z-10"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    downloadFile(
+                      `${process.env.NEXT_PUBLIC_API_BASE_URL}/files/${srcFile.storedFilename}`,
+                      srcFile.originalFilename
+                    )
+                  }}
+                  title={`원본 파일 다운로드: ${srcFile.originalFilename}`}
+                >
+                  <Download className="h-3 w-3" />
+                  <span className="text-[7px] leading-none font-bold mt-0.5">
+                    {getFileExtension(srcFile.originalFilename)}
+                  </span>
+                </button>
+              )}
             </div>
-            <div className="text-xs text-gray-500 text-center">
+            <div className="text-xs text-gray-500 text-center truncate max-w-[100px]" title={track.name}>
               {track.name}
             </div>
           </div>
@@ -322,13 +414,23 @@ function HistoryPageContent() {
           뒤로가기
         </Button>
         
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-primary mb-2">
-            {historyData.projectName} 히스토리
-          </h1>
-          <p className="text-gray-600">
-            {historyData.revisions.length}개의 리비전
-          </p>
+        <div className="mb-6 flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold text-primary mb-2">
+              {historyData.projectName} 히스토리
+            </h1>
+            <p className="text-gray-600">
+              {historyData.revisions.length}개의 리비전
+            </p>
+          </div>
+          <Button
+            onClick={handleBulkDownload}
+            disabled={selectedFiles.size === 0}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            다운로드 ({selectedFiles.size})
+          </Button>
         </div>
         
         <Card>
@@ -342,7 +444,16 @@ function HistoryPageContent() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b-2 border-gray-200">
-                      <th className="p-3 text-center font-semibold text-gray-700 sticky left-0 bg-gray-50 z-10">
+                      <th className="p-3 text-center font-semibold text-gray-700 w-12">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 cursor-pointer"
+                          title="전체선택"
+                        />
+                      </th>
+                      <th className="p-3 text-center font-semibold text-gray-700 sticky left-12 bg-gray-50 z-10">
                         리비전
                       </th>
                       {allTracks.map((track) => (
@@ -355,7 +466,10 @@ function HistoryPageContent() {
                   <tbody>
                     {historyData.revisions.map((revision) => (
                       <tr key={revision.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="p-3 text-left border-r border-gray-200 sticky left-0 bg-white z-10">
+                        <td className="p-3 text-center border-r border-gray-200 sticky left-0 bg-white z-10 w-12">
+                          {/* 빈 셀 - 리비전 행에는 체크박스 없음 */}
+                        </td>
+                        <td className="p-3 text-left border-r border-gray-200 sticky left-12 bg-white z-10">
                           <div className="space-y-1">
                             <div className="font-bold text-primary text-lg">
                               Rev {revision.revNo}

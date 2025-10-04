@@ -87,6 +87,8 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
 
   // 파일 업로드 관련 상태
   const [trackFiles, setTrackFiles] = useState<{ [key: string]: File }>({})
+  const [trackSrcFiles, setTrackSrcFiles] = useState<{ [key: string]: File }>({})
+  const [convertingTracks, setConvertingTracks] = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // 이미지 확대 모달 상태
@@ -471,27 +473,118 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
   }
 
   // 파일 업로드 관련 함수들
-  const handleFileSelect = (file: File, trackId: string) => {
+  const handleFileSelect = async (file: File, trackId: string) => {
     console.log('📁 파일 선택됨:', file.name, 'trackId:', trackId)
     console.log('📏 파일 크기:', file.size, '바이트')
     console.log('🎭 파일 타입:', file.type)
 
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      console.log('✅ 파일 읽기 완료 - trackFiles 상태 업데이트')
-      setTrackFiles(prev => {
-        const newState = {
-          ...prev,
-          [trackId]: file
+    // PSD/AI 파일인지 확인
+    const isPsdAi = /\.(psd|ai)$/i.test(file.name)
+
+    if (isPsdAi) {
+      console.log('🎨 PSD/AI 파일 감지 - 변환 시작')
+
+      // 원본 파일 저장
+      setTrackSrcFiles(prev => ({
+        ...prev,
+        [trackId]: file
+      }))
+
+      // 변환 중 상태 표시
+      setConvertingTracks(prev => new Set(prev).add(trackId))
+
+      try {
+        // Base64로 변환
+        const reader = new FileReader()
+        const base64Content = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string
+            const base64 = result.split(',')[1] || result
+            resolve(base64)
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(file)
+        })
+
+        console.log('🔄 변환 API 호출 중...')
+
+        // API 호출하여 PNG로 변환
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/tool/convert_img`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fileContent: `data:${file.type};base64,${base64Content}`,
+            outputFormat: 'png',
+            keepTempFiles: '0'
+          }),
+          credentials: 'include'
+        })
+
+        const result = await response.json()
+        console.log('📥 변환 API 응답:', result)
+
+        if (result.success && result.fileContent) {
+          console.log('✅ 변환 성공')
+
+          // Base64를 Blob으로 변환
+          const base64Data = result.fileContent.split(',')[1] || result.fileContent
+          const byteCharacters = atob(base64Data)
+          const byteNumbers = new Array(byteCharacters.length)
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i)
+          }
+          const byteArray = new Uint8Array(byteNumbers)
+          const blob = new Blob([byteArray], { type: 'image/png' })
+
+          // Blob을 File로 변환
+          const convertedFile = new File([blob], file.name.replace(/\.(psd|ai)$/i, '_converted.png'), { type: 'image/png' })
+
+          // 변환된 파일을 미리보기로 설정
+          setTrackFiles(prev => ({
+            ...prev,
+            [trackId]: convertedFile
+          }))
+        } else {
+          throw new Error(result.message || '변환 실패')
         }
-        console.log('📋 새로운 trackFiles 상태:', Object.keys(newState))
-        return newState
-      })
+      } catch (error) {
+        console.error('❌ 파일 변환 실패:', error)
+        alert(`파일 변환에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+
+        // 실패 시 원본 파일도 제거
+        setTrackSrcFiles(prev => {
+          const newState = { ...prev }
+          delete newState[trackId]
+          return newState
+        })
+      } finally {
+        setConvertingTracks(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(trackId)
+          return newSet
+        })
+      }
+    } else {
+      // 일반 이미지 파일
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        console.log('✅ 파일 읽기 완료 - trackFiles 상태 업데이트')
+        setTrackFiles(prev => {
+          const newState = {
+            ...prev,
+            [trackId]: file
+          }
+          console.log('📋 새로운 trackFiles 상태:', Object.keys(newState))
+          return newState
+        })
+      }
+      reader.onerror = (e) => {
+        console.error('❌ 파일 읽기 실패:', e)
+      }
+      reader.readAsDataURL(file)
     }
-    reader.onerror = (e) => {
-      console.error('❌ 파일 읽기 실패:', e)
-    }
-    reader.readAsDataURL(file)
   }
 
   const handleTrackImageClick = (trackId: string) => {
@@ -508,7 +601,7 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
     console.log('✅ 편집 권한 확인 - 파일 선택 시작')
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = 'image/*'
+    input.accept = 'image/*,.psd,.ai'
     input.onchange = (e) => {
       console.log('🔄 파일 input 변경 감지')
       const target = e.target as HTMLInputElement
@@ -648,7 +741,7 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
       const uploads = await Promise.all(
         Object.entries(trackFiles).map(async ([trackId, file]) => {
           const base64 = await fileToBase64(file)
-          return {
+          const upload: any = {
             trackId: parseInt(trackId),
             file: {
               original_filename: file.name,
@@ -657,6 +750,20 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
               data: base64
             }
           }
+
+          // PSD/AI 원본 파일이 있는 경우 추가
+          const srcFile = trackSrcFiles[trackId]
+          if (srcFile) {
+            const srcBase64 = await fileToBase64(srcFile)
+            upload.srcFile = {
+              original_filename: srcFile.name,
+              size: srcFile.size,
+              modified_datetime: new Date(srcFile.lastModified).toISOString(),
+              data: srcBase64
+            }
+          }
+
+          return upload
         })
       )
 
@@ -806,7 +913,12 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                             {track.name || track.title || '트랙'}
                           </h4>
 
-                          {track.latestFile || trackFiles[track.id] ? (
+                          {convertingTracks.has(track.id) ? (
+                            <div className="w-full h-48 flex flex-col items-center justify-center bg-gray-50 rounded-lg">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-3"></div>
+                              <p className="text-sm text-gray-600">PSD/AI 파일 변환 중...</p>
+                            </div>
+                          ) : track.latestFile || trackFiles[track.id] ? (
                             <div className="space-y-2">
                               <div
                                 className={`relative bg-gray-100 rounded-lg overflow-hidden ${
@@ -1057,21 +1169,12 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                       const result = await response.json()
                       console.log('피드백 완료 API 응답:', result)
 
-                      // 리비전 상태를 'reviewed'로 업데이트하여 버튼 숨김
-                      if (result.success && result.status === 'reviewed') {
-                        setRevision(prev => prev ? { ...prev, status: 'reviewed' } : prev)
-                        console.log('🔍 리비전 상태 업데이트: reviewed')
-                      }
-
                       alert('디자이너에게 내용을 전달하였습니다')
 
-                      // 페이지 새로고침 대신 상태만 업데이트 (버튼이 바로 사라지도록)
-                      // const params = new URLSearchParams()
-                      // params.set('projectId', projectId)
-                      // params.set('revNo', revNo)
-                      // if (code) params.set('code', code)
-                      // params.set('tab', activeTab)
-                      // router.push(`/revision-new?${params.toString()}`)
+                      // 페이지 새로고침하여 상태 업데이트
+                      setTimeout(() => {
+                        window.location.reload()
+                      }, 500)
 
                     } catch (error) {
                       console.error('피드백 완료 처리 실패:', error)
