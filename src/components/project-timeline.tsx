@@ -2,23 +2,26 @@
 
 import { useState, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Clock, FileText, MessageSquare, CheckCircle, Upload, UserPlus } from 'lucide-react'
+import { Clock, FileText, MessageSquare, CheckCircle, Upload, FolderPlus, CreditCard } from 'lucide-react'
 
 interface TimelineActivity {
   id: number
-  type: 'revision_created' | 'revision_submitted' | 'feedback_created' | 'feedback_completed' | 'file_uploaded' | 'member_invited'
+  type: 'project_created' | 'revision_created' | 'revision_submitted' | 'feedback_created' | 'feedback_completed' | 'file_uploaded' | 'payment_completed'
   user: {
     id: number
     name: string
     email: string
   }
   metadata: {
+    projectName?: string
     revNo?: number
     trackName?: string
     fileName?: string
     fileCount?: number
     feedbackContent?: string
-    invitedEmail?: string
+    paymentName?: string
+    paymentAmount?: number
+    paymentPercentage?: number
   }
   createdAt: string
 }
@@ -31,52 +34,52 @@ interface ProjectTimelineProps {
 const MOCK_ACTIVITIES: TimelineActivity[] = [
   {
     id: 1,
+    type: 'payment_completed',
+    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
+    metadata: { paymentName: '중간금', paymentAmount: 2000000, paymentPercentage: 40 },
+    createdAt: '2025-01-15T15:00:00Z'
+  },
+  {
+    id: 2,
     type: 'revision_submitted',
     user: { id: 1, name: '홍길동', email: 'hong@example.com' },
     metadata: { revNo: 3, fileCount: 5 },
     createdAt: '2025-01-15T14:30:00Z'
   },
   {
-    id: 2,
+    id: 3,
     type: 'feedback_created',
     user: { id: 2, name: '김철수', email: 'kim@example.com' },
     metadata: { trackName: '메인 배너', revNo: 3 },
     createdAt: '2025-01-15T11:20:00Z'
   },
   {
-    id: 3,
+    id: 4,
     type: 'file_uploaded',
     user: { id: 1, name: '홍길동', email: 'hong@example.com' },
     metadata: { fileName: 'header.psd', revNo: 3 },
     createdAt: '2025-01-15T09:15:00Z'
   },
   {
-    id: 4,
+    id: 5,
     type: 'revision_created',
     user: { id: 1, name: '홍길동', email: 'hong@example.com' },
     metadata: { revNo: 3 },
     createdAt: '2025-01-15T09:00:00Z'
   },
   {
-    id: 5,
+    id: 6,
     type: 'feedback_completed',
     user: { id: 2, name: '김철수', email: 'kim@example.com' },
     metadata: { revNo: 2 },
     createdAt: '2025-01-14T16:45:00Z'
   },
   {
-    id: 6,
+    id: 7,
     type: 'revision_submitted',
     user: { id: 1, name: '홍길동', email: 'hong@example.com' },
     metadata: { revNo: 2, fileCount: 3 },
     createdAt: '2025-01-14T14:20:00Z'
-  },
-  {
-    id: 7,
-    type: 'member_invited',
-    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
-    metadata: { invitedEmail: 'lee@example.com' },
-    createdAt: '2025-01-13T10:00:00Z'
   },
   {
     id: 8,
@@ -84,6 +87,20 @@ const MOCK_ACTIVITIES: TimelineActivity[] = [
     user: { id: 2, name: '김철수', email: 'kim@example.com' },
     metadata: { trackName: '로고', revNo: 2 },
     createdAt: '2025-01-14T13:30:00Z'
+  },
+  {
+    id: 9,
+    type: 'payment_completed',
+    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
+    metadata: { paymentName: '계약금', paymentAmount: 1500000, paymentPercentage: 30 },
+    createdAt: '2025-01-13T11:00:00Z'
+  },
+  {
+    id: 10,
+    type: 'project_created',
+    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
+    metadata: { projectName: '웹사이트 리디자인 프로젝트' },
+    createdAt: '2025-01-13T10:00:00Z'
   }
 ]
 
@@ -183,6 +200,8 @@ function ActivityItem({ activity }: { activity: TimelineActivity }) {
 
 function getActivityIcon(type: TimelineActivity['type']) {
   switch (type) {
+    case 'project_created':
+      return <FolderPlus className="w-3 h-3 mr-1" />
     case 'revision_created':
       return <FileText className="w-3 h-3 mr-1" />
     case 'revision_submitted':
@@ -193,8 +212,8 @@ function getActivityIcon(type: TimelineActivity['type']) {
       return <CheckCircle className="w-3 h-3 mr-1" />
     case 'file_uploaded':
       return <Upload className="w-3 h-3 mr-1" />
-    case 'member_invited':
-      return <UserPlus className="w-3 h-3 mr-1" />
+    case 'payment_completed':
+      return <CreditCard className="w-3 h-3 mr-1" />
     default:
       return null
   }
@@ -204,6 +223,12 @@ function getActivityMessage(activity: TimelineActivity) {
   const userName = <strong className="text-gray-900">{activity.user.name}</strong>
 
   switch (activity.type) {
+    case 'project_created':
+      return (
+        <span>
+          {userName}님이 <strong className="text-gray-900">{activity.metadata.projectName}</strong> 프로젝트를 생성했습니다
+        </span>
+      )
     case 'revision_created':
       return (
         <span>
@@ -235,10 +260,15 @@ function getActivityMessage(activity: TimelineActivity) {
           {userName}님이 <strong className="text-gray-900">{activity.metadata.fileName}</strong> 파일을 업로드했습니다
         </span>
       )
-    case 'member_invited':
+    case 'payment_completed':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">{activity.metadata.invitedEmail}</strong>을 프로젝트에 초대했습니다
+          {userName}님이 <strong className="text-gray-900">{activity.metadata.paymentName}</strong>을 결제했습니다
+          {activity.metadata.paymentAmount && (
+            <span className="text-green-600 font-semibold ml-1">
+              ({activity.metadata.paymentAmount.toLocaleString()}원 / {activity.metadata.paymentPercentage}%)
+            </span>
+          )}
         </span>
       )
     default:
