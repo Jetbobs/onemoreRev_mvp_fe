@@ -14,6 +14,7 @@ import { ChevronLeft, Edit, User, ExternalLink, AlertCircle } from 'lucide-react
 import { RevisionOverview } from '@/components/revision-overview'
 import { RevisionDrafts } from '@/components/revision-drafts'
 import { RevisionFiles } from '@/components/revision-files'
+import { ProjectTimeline } from '@/components/project-timeline'
 import { calculateDateProgress, formatDate } from '@/utils/dateProgress'
 import { projectApi } from '@/lib/api'
 
@@ -61,13 +62,13 @@ function RevisionPageContent() {
 
   // URL의 tab 파라미터를 기반으로 activeTab 상태 설정
   const [activeTab, setActiveTab] = useState(() => {
-    const validTabs = ['overview', 'drafts', 'files']
+    const validTabs = ['overview', 'drafts', 'files', 'timeline']
     return validTabs.includes(tabParam || '') ? (tabParam as string) : 'overview'
   })
 
   // tab 파라미터가 변경될 때 activeTab 업데이트
   useEffect(() => {
-    const validTabs = ['overview', 'drafts', 'files']
+    const validTabs = ['overview', 'drafts', 'files', 'timeline']
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam)
     }
@@ -526,6 +527,12 @@ function RevisionPageContent() {
                 >
                   파일 및 히스토리
                 </TabsTrigger>
+                <TabsTrigger
+                  value="timeline"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3"
+                >
+                  타임라인
+                </TabsTrigger>
               </TabsList>
 
               <div className="pt-6">
@@ -565,6 +572,13 @@ function RevisionPageContent() {
                     activeTab={activeTab}
                     code={code || undefined}
                   />
+                </TabsContent>
+
+                {/* 타임라인 탭 */}
+                <TabsContent value="timeline" className="mt-0">
+                  {projectId && (
+                    <ProjectTimeline projectId={projectId} />
+                  )}
                 </TabsContent>
               </div>
             </CardContent>

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { Menu, Search, User } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,8 +25,24 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { useAuthStore } from "@/store/authStore"
+import { authApi } from "@/lib/api"
 
 export function Header() {
+  const router = useRouter()
+  const { user, logout } = useAuthStore()
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } catch (error) {
+      console.error('로그아웃 API 호출 실패:', error)
+    } finally {
+      // API 실패해도 클라이언트 상태는 초기화
+      logout()
+      router.push('/login-new')
+    }
+  }
   return (
     <header className="px-8 sticky top-0 z-50 w-full border-b bg-background/95 border-gray-200 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center w-full">
@@ -55,13 +72,6 @@ export function Header() {
                 </Link>
               </NavigationMenuLink>
             </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuLink asChild>
-                <Link href="/docs" className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50">
-                  설정
-                </Link>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>
         {/* User menu */}
@@ -82,18 +92,14 @@ export function Header() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">사용자</p>
+                  <p className="text-sm font-medium leading-none">{user?.name || '사용자'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    user@example.com
+                    {user?.email || 'user@example.com'}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>프로필</DropdownMenuItem>
-              <DropdownMenuItem>설정</DropdownMenuItem>
-              <DropdownMenuItem>팀</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>로그아웃</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>로그아웃</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -121,7 +127,6 @@ export function Header() {
               <div className="flex flex-col space-y-3">
                 <Link href="/projects-new" className="font-medium">프로젝트</Link>
                 <Link href="/my-projects" className="font-medium">내 프로젝트</Link>
-                <Link href="/docs" className="font-medium">설정</Link>
               </div>
             </div>
           </SheetContent>

@@ -10,18 +10,20 @@ import { AlertCircle, CheckCircle } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/store/authStore'
 
 export function LoginFormNew() {
   const [formData, setFormData] = useState({
     email: 'hong@example.com', // 예제에서 기본값 제공
     password: 'password123'     // 예제에서 기본값 제공
   })
-  
+
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('')
-  
+
   const router = useRouter()
+  const setUser = useAuthStore((state) => state.setUser)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -49,13 +51,16 @@ export function LoginFormNew() {
     try {
       const data = await authApi.login(formData.email, formData.password)
       console.log('[Login] Success:', data)
-      
+
+      // Zustand에 사용자 정보 저장
+      setUser(data)
+
       setMessage('로그인 성공! 프로젝트 페이지로 이동합니다.')
       setMessageType('success')
-      
+
       // 성공 시 프로젝트 페이지로 리다이렉트
       setTimeout(() => {
-        router.push('/projects')
+        router.push('/projects-new')
       }, 1200)
       
     } catch (error: any) {
