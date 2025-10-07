@@ -4,25 +4,43 @@ import { useState, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Clock, FileText, MessageSquare, CheckCircle, Upload, FolderPlus, CreditCard } from 'lucide-react'
 
+// 백엔드 ActivityLog 응답 타입
+interface ActivityLogResponse {
+  success: boolean
+  message: string
+  projectId: number
+  projectName: string
+  totalCount: number
+  logs: ActivityLogItem[]
+}
+
+interface ActivityLogItem {
+  id: number
+  userId?: number
+  projectId: number
+  msg: string
+  params: string | null
+  createdAt: string
+  updatedAt: string
+  user?: {
+    id: number
+    email: string
+    name?: string
+  }
+}
+
+// 프론트엔드 타임라인 타입
 interface TimelineActivity {
   id: number
-  type: 'project_created' | 'revision_created' | 'revision_submitted' | 'feedback_created' | 'feedback_completed' | 'file_uploaded' | 'payment_completed'
+  type: 'project_created' | 'revision_created' | 'revision_submitted' |
+        'feedback_created' | 'feedback_updated' | 'feedback_deleted' |
+        'file_uploaded' | 'track_added' | 'review_completed' | 'payment_updated'
   user: {
     id: number
     name: string
     email: string
-  }
-  metadata: {
-    projectName?: string
-    revNo?: number
-    trackName?: string
-    fileName?: string
-    fileCount?: number
-    feedbackContent?: string
-    paymentName?: string
-    paymentAmount?: number
-    paymentPercentage?: number
-  }
+  } | null
+  metadata: Record<string, any>
   createdAt: string
 }
 
@@ -30,79 +48,39 @@ interface ProjectTimelineProps {
   projectId: string
 }
 
-// Mock 데이터 (나중에 API로 교체)
-const MOCK_ACTIVITIES: TimelineActivity[] = [
-  {
-    id: 1,
-    type: 'payment_completed',
-    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
-    metadata: { paymentName: '중간금', paymentAmount: 2000000, paymentPercentage: 40 },
-    createdAt: '2025-01-15T15:00:00Z'
-  },
-  {
-    id: 2,
-    type: 'revision_submitted',
-    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
-    metadata: { revNo: 3, fileCount: 5 },
-    createdAt: '2025-01-15T14:30:00Z'
-  },
-  {
-    id: 3,
-    type: 'feedback_created',
-    user: { id: 2, name: '김철수', email: 'kim@example.com' },
-    metadata: { trackName: '메인 배너', revNo: 3 },
-    createdAt: '2025-01-15T11:20:00Z'
-  },
-  {
-    id: 4,
-    type: 'file_uploaded',
-    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
-    metadata: { fileName: 'header.psd', revNo: 3 },
-    createdAt: '2025-01-15T09:15:00Z'
-  },
-  {
-    id: 5,
-    type: 'revision_created',
-    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
-    metadata: { revNo: 3 },
-    createdAt: '2025-01-15T09:00:00Z'
-  },
-  {
-    id: 6,
-    type: 'feedback_completed',
-    user: { id: 2, name: '김철수', email: 'kim@example.com' },
-    metadata: { revNo: 2 },
-    createdAt: '2025-01-14T16:45:00Z'
-  },
-  {
-    id: 7,
-    type: 'revision_submitted',
-    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
-    metadata: { revNo: 2, fileCount: 3 },
-    createdAt: '2025-01-14T14:20:00Z'
-  },
-  {
-    id: 8,
-    type: 'feedback_created',
-    user: { id: 2, name: '김철수', email: 'kim@example.com' },
-    metadata: { trackName: '로고', revNo: 2 },
-    createdAt: '2025-01-14T13:30:00Z'
-  },
-  {
-    id: 9,
-    type: 'payment_completed',
-    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
-    metadata: { paymentName: '계약금', paymentAmount: 1500000, paymentPercentage: 30 },
-    createdAt: '2025-01-13T11:00:00Z'
-  },
-  {
-    id: 10,
-    type: 'project_created',
-    user: { id: 1, name: '홍길동', email: 'hong@example.com' },
-    metadata: { projectName: '웹사이트 리디자인 프로젝트' },
-    createdAt: '2025-01-13T10:00:00Z'
+// msg 값을 타임라인 타입으로 매핑
+const MSG_TO_TYPE_MAP: Record<string, TimelineActivity['type']> = {
+  '프로젝트 생성': 'project_created',
+  '리비전 생성': 'revision_created',
+  '리비전 제출': 'revision_submitted',
+  '파일 업로드': 'file_uploaded',
+  '소스 파일 업로드': 'file_uploaded',
+  '트랙 추가': 'track_added',
+  '리뷰 완료': 'review_completed',
+  '지급 상태 변경': 'payment_updated',
+  '피드백 생성': 'feedback_created',
+  '피드백 수정': 'feedback_updated',
+  '피드백 삭제': 'feedback_deleted',
+  '피드백 답글 설정': 'feedback_created',
+  '피드백 답글 삭제': 'feedback_deleted',
+}
+
+// ActivityLog를 TimelineActivity로 변환
+function transformActivityLog(log: ActivityLogItem): TimelineActivity {
+  const params = log.params ? JSON.parse(log.params) : {}
+
+  return {
+    id: log.id,
+    type: MSG_TO_TYPE_MAP[log.msg] || 'project_created',
+    user: log.user ? {
+      id: log.user.id,
+      name: log.user.name || '게스트',
+      email: log.user.email
+    } : null,
+    metadata: params,
+    createdAt: log.createdAt
   }
-]
+}
 
 export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
   const [activities, setActivities] = useState<TimelineActivity[]>([])
@@ -116,18 +94,13 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
     try {
       setIsLoading(true)
 
-      // TODO: 백엔드 API 연결
-      // const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/project/${projectId}/timeline`, {
-      //   credentials: 'include'
-      // })
-      // const data = await response.json()
-      // setActivities(data.activities)
-
-      // Mock 데이터 사용
-      await new Promise(resolve => setTimeout(resolve, 500))
-      setActivities(MOCK_ACTIVITIES)
+      const { projectApi } = await import('@/lib/api')
+      const data: ActivityLogResponse = await projectApi.logs(projectId)
+      const transformedActivities = data.logs.map(transformActivityLog)
+      setActivities(transformedActivities)
     } catch (error) {
       console.error('타임라인 로드 실패:', error)
+      setActivities([])
     } finally {
       setIsLoading(false)
     }
@@ -175,9 +148,9 @@ function ActivityItem({ activity }: { activity: TimelineActivity }) {
     <li className="block p-3 hover:bg-gray-100 rounded transition-colors">
       <div className="flex items-start gap-3">
         <Avatar className="h-10 w-10 mt-1">
-          <AvatarImage src={`/avatars/${activity.user.id}.png`} />
+          <AvatarImage src={activity.user ? `/avatars/${activity.user.id}.png` : undefined} />
           <AvatarFallback>
-            {activity.user.name.charAt(0)}
+            {activity.user ? activity.user.name.charAt(0) : 'G'}
           </AvatarFallback>
         </Avatar>
 
@@ -207,12 +180,17 @@ function getActivityIcon(type: TimelineActivity['type']) {
     case 'revision_submitted':
       return <Upload className="w-3 h-3 mr-1" />
     case 'feedback_created':
+    case 'feedback_updated':
       return <MessageSquare className="w-3 h-3 mr-1" />
-    case 'feedback_completed':
+    case 'feedback_deleted':
+      return <MessageSquare className="w-3 h-3 mr-1" />
+    case 'review_completed':
       return <CheckCircle className="w-3 h-3 mr-1" />
     case 'file_uploaded':
       return <Upload className="w-3 h-3 mr-1" />
-    case 'payment_completed':
+    case 'track_added':
+      return <FolderPlus className="w-3 h-3 mr-1" />
+    case 'payment_updated':
       return <CreditCard className="w-3 h-3 mr-1" />
     default:
       return null
@@ -220,55 +198,74 @@ function getActivityIcon(type: TimelineActivity['type']) {
 }
 
 function getActivityMessage(activity: TimelineActivity) {
-  const userName = <strong className="text-gray-900">{activity.user.name}</strong>
+  const userName = activity.user
+    ? <strong className="text-gray-900">{activity.user.name}</strong>
+    : <strong className="text-gray-900">게스트</strong>
+  const meta = activity.metadata
 
   switch (activity.type) {
     case 'project_created':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">{activity.metadata.projectName}</strong> 프로젝트를 생성했습니다
+          {userName}님이 <strong className="text-gray-900">{meta.name || '프로젝트'}</strong>를 생성했습니다
         </span>
       )
     case 'revision_created':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">Rev {activity.metadata.revNo}</strong>을 시작했습니다
+          {userName}님이 <strong className="text-gray-900">Rev {meta.revNo}</strong>을 시작했습니다
         </span>
       )
     case 'revision_submitted':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">Rev {activity.metadata.revNo}</strong>을 제출했습니다
-          {activity.metadata.fileCount && ` (${activity.metadata.fileCount}개 파일)`}
+          {userName}님이 <strong className="text-gray-900">Rev {meta.revNo}</strong>을 제출했습니다
         </span>
       )
     case 'feedback_created':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">{activity.metadata.trackName}</strong> 트랙에 피드백을 작성했습니다
+          {userName}님이 피드백을 작성했습니다
+          {meta.trackName && <> (<strong className="text-gray-900">{meta.trackName}</strong>)</>}
         </span>
       )
-    case 'feedback_completed':
+    case 'feedback_updated':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">Rev {activity.metadata.revNo}</strong>의 검토를 완료했습니다
+          {userName}님이 피드백을 수정했습니다
+        </span>
+      )
+    case 'feedback_deleted':
+      return (
+        <span>
+          {userName}님이 피드백을 삭제했습니다
+        </span>
+      )
+    case 'review_completed':
+      return (
+        <span>
+          {userName}님이 <strong className="text-gray-900">Rev {meta.revNo}</strong>의 검토를 완료했습니다
         </span>
       )
     case 'file_uploaded':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">{activity.metadata.fileName}</strong> 파일을 업로드했습니다
+          {userName}님이 파일을 업로드했습니다
+          {meta.fileName && <> (<strong className="text-gray-900">{meta.fileName}</strong>)</>}
         </span>
       )
-    case 'payment_completed':
+    case 'track_added':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">{activity.metadata.paymentName}</strong>을 결제했습니다
-          {activity.metadata.paymentAmount && (
-            <span className="text-green-600 font-semibold ml-1">
-              ({activity.metadata.paymentAmount.toLocaleString()}원 / {activity.metadata.paymentPercentage}%)
-            </span>
-          )}
+          {userName}님이 트랙을 추가했습니다
+          {meta.trackName && <> (<strong className="text-gray-900">{meta.trackName}</strong>)</>}
+        </span>
+      )
+    case 'payment_updated':
+      return (
+        <span>
+          {userName}님이 결제 상태를 변경했습니다
+          {meta.checkpointName && <> (<strong className="text-gray-900">{meta.checkpointName}</strong>)</>}
         </span>
       )
     default:

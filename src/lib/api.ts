@@ -1,5 +1,7 @@
+import { API_CONFIG } from '@/config/api.config'
+
 // API 호출 헬퍼 함수
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+const API_BASE_URL = API_CONFIG.BASE_URL;
 
 interface ApiOptions {
   method?: string;
@@ -52,47 +54,50 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
 
 // 인증 관련 API
 export const authApi = {
-  login: (email: string, password: string) => 
-    apiFetch('/api/v1/login', {
+  login: (email: string, password: string) =>
+    apiFetch(API_CONFIG.ENDPOINTS.LOGIN, {
       method: 'POST',
       body: { email, password }
     }),
 
   register: (userData: Record<string, unknown>) =>
-    apiFetch('/api/v1/register', {
+    apiFetch(API_CONFIG.ENDPOINTS.REGISTER, {
       method: 'POST',
       body: userData
     }),
 
-  profile: () => 
-    apiFetch('/api/v1/user/profile'),
+  profile: () =>
+    apiFetch(API_CONFIG.ENDPOINTS.PROFILE),
 
-  logout: () => 
-    apiFetch('/api/v1/logout', { method: 'POST' })
+  logout: () =>
+    apiFetch(API_CONFIG.ENDPOINTS.LOGOUT, { method: 'POST' })
 };
 
 // 프로젝트 관련 API
 export const projectApi = {
   list: () =>
-    apiFetch('/api/v1/project/list'),
+    apiFetch(API_CONFIG.ENDPOINTS.PROJECT_LIST),
 
   detail: (id: string) =>
-    apiFetch(`/api/v1/project/${id}`),
+    apiFetch(`${API_CONFIG.ENDPOINTS.PROJECT_DETAIL}/${id}`),
 
   info: (projectId: string) =>
-    apiFetch(`/api/v1/project/info?projectId=${projectId}`),
+    apiFetch(`${API_CONFIG.ENDPOINTS.PROJECT_INFO}?projectId=${projectId}`),
 
   create: (projectData: Record<string, unknown>) =>
-    apiFetch('/api/v1/project/new', {
+    apiFetch(API_CONFIG.ENDPOINTS.PROJECT_NEW, {
       method: 'POST',
       body: projectData
-    })
+    }),
+
+  logs: (projectId: string) =>
+    apiFetch(`${API_CONFIG.ENDPOINTS.PROJECT_LOGS}?projectId=${projectId}`)
 };
 
 // 리비전 관련 API
 export const revisionApi = {
   createNext: (projectId: string) =>
-    apiFetch('/api/v1/revision/new', {
+    apiFetch(API_CONFIG.ENDPOINTS.REVISION_NEW, {
       method: 'POST',
       body: { projectId: parseInt(projectId) }
     })
@@ -149,7 +154,7 @@ export interface ProjectHistoryRevision {
 // Tool API
 export const toolApi = {
   convertImage: (data: ConvertImgRequest): Promise<ConvertImgResponse> =>
-    apiFetch('/api/tool/convert_img', {
+    apiFetch(API_CONFIG.ENDPOINTS.CONVERT_IMAGE, {
       method: 'POST',
       body: data
     })
