@@ -557,7 +557,10 @@ function RevisionPageContent() {
                     projectId={projectId || ''}
                     revNo={revNo || '1'}
                     code={code || undefined}
-                    revision={revision}
+                    revision={{
+                      ...revision,
+                      tracks: project?.tracks || revision?.tracks  // project.tracks 사용 (revNo 포함)
+                    }}
                     activeTab={activeTab}
                   />
                 </TabsContent>

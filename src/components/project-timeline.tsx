@@ -69,9 +69,38 @@ const MSG_TO_TYPE_MAP: Record<string, TimelineActivity['type']> = {
 function transformActivityLog(log: ActivityLogItem): TimelineActivity {
   const params = log.params ? JSON.parse(log.params) : {}
 
+  // 패턴 매칭으로 활동 타입 결정 (더 구체적인 패턴을 먼저 확인)
+  let type: TimelineActivity['type'] = 'project_created'
+
+  const msg = log.msg
+
+  if (msg.includes('리뷰를 완료') || msg.includes('리뷰 완료') || msg.includes('검토를 완료')) {
+    type = 'review_completed'
+  } else if (msg.includes('리비전을 제출') || msg.includes('리비전 제출')) {
+    type = 'revision_submitted'
+  } else if (msg.includes('리비전을 생성') || msg.includes('리비전 생성')) {
+    type = 'revision_created'
+  } else if (msg.includes('파일이 업로드') || msg.includes('파일 업로드') || msg.includes('소스 파일 업로드')) {
+    type = 'file_uploaded'
+  } else if (msg.includes('피드백을 삭제') || msg.includes('피드백 삭제') || msg.includes('답글 삭제')) {
+    type = 'feedback_deleted'
+  } else if (msg.includes('피드백을 수정') || msg.includes('피드백 수정')) {
+    type = 'feedback_updated'
+  } else if (msg.includes('피드백을 추가') || msg.includes('피드백') || msg.includes('답글 설정')) {
+    type = 'feedback_created'
+  } else if (msg.includes('트랙을 생성') || msg.includes('트랙 생성') || msg.includes('트랙 추가')) {
+    type = 'track_added'
+  } else if (msg.includes('결제') || msg.includes('지급')) {
+    type = 'payment_updated'
+  } else if (msg.includes('프로젝트를 생성') || msg.includes('프로젝트 생성')) {
+    type = 'project_created'
+  }
+
+  console.log('[타임라인] msg:', msg, '→ type:', type)
+
   return {
     id: log.id,
-    type: MSG_TO_TYPE_MAP[log.msg] || 'project_created',
+    type,
     user: log.user ? {
       id: log.user.id,
       name: log.user.name || '게스트',
@@ -96,6 +125,19 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
 
       const { projectApi } = await import('@/lib/api')
       const data: ActivityLogResponse = await projectApi.logs(projectId)
+
+      // 백엔드에서 받은 원본 로그 데이터 전체 출력
+      console.log('=== 백엔드 로그 원본 데이터 ===')
+      console.log('전체 응답:', JSON.stringify(data, null, 2))
+      console.log('로그 개수:', data.logs.length)
+      console.log('\n각 로그의 msg 값:')
+      data.logs.forEach((log, index) => {
+        console.log(`${index + 1}. msg: "${log.msg}"`)
+        console.log(`   params: ${log.params}`)
+        console.log(`   user: ${log.user?.name || '없음'}`)
+      })
+      console.log('=== 로그 원본 데이터 끝 ===\n')
+
       const transformedActivities = data.logs.map(transformActivityLog)
       setActivities(transformedActivities)
     } catch (error) {
@@ -203,23 +245,27 @@ function getActivityMessage(activity: TimelineActivity) {
     : <strong className="text-gray-900">게스트</strong>
   const meta = activity.metadata
 
+  // 백엔드에서 revisionNo로 보냄
+  const revNo = meta.revisionNo || meta.revNo
+
   switch (activity.type) {
     case 'project_created':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">{meta.name || '프로젝트'}</strong>를 생성했습니다
+          {userName}님이 <strong className="text-gray-900">{meta.projectName || meta.name || '프로젝트'}</strong>를 생성했습니다
         </span>
       )
     case 'revision_created':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">Rev {meta.revNo}</strong>을 시작했습니다
+          {userName}님이 {revNo ? <strong className="text-gray-900">Rev {revNo}</strong> : '리비전'}을 시작했습니다
         </span>
       )
     case 'revision_submitted':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">Rev {meta.revNo}</strong>을 제출했습니다
+          {userName}님이 {revNo ? <strong className="text-gray-900">Rev {revNo}</strong> : '리비전'}을 제출했습니다
+          {meta.fileCount && <> ({meta.fileCount}개 파일)</>}
         </span>
       )
     case 'feedback_created':
@@ -244,7 +290,7 @@ function getActivityMessage(activity: TimelineActivity) {
     case 'review_completed':
       return (
         <span>
-          {userName}님이 <strong className="text-gray-900">Rev {meta.revNo}</strong>의 검토를 완료했습니다
+          {userName}님이 {revNo ? <><strong className="text-gray-900">Rev {revNo}</strong>의</> : null} 검토를 완료했습니다
         </span>
       )
     case 'file_uploaded':

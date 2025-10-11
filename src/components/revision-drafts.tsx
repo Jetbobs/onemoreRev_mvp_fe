@@ -20,6 +20,7 @@ interface Track {
     storedFilename: string
     originalFilename: string
     uploadedAt: string
+    revNo: number  // 어느 리비전에서 업로드되었는지
   }
 }
 
@@ -902,7 +903,35 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
                 <p className="text-gray-500 text-center py-8">트랙이 없습니다.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {revision.tracks.map((track) => {
+                  {revision.tracks
+                    .filter(track => {
+                      console.log('[필터] 트랙 체크:', {
+                        trackId: track.id,
+                        trackName: track.name,
+                        hasLatestFile: !!track.latestFile,
+                        latestFileRevNo: track.latestFile?.revNo,
+                        currentRevNo: revision.revNo,
+                        isGuest: !!code,
+                        revisionStatus: revision.status
+                      })
+
+                      // prepare 상태(편집 가능)일 때: 이전 리비전 트랙 + 새로 추가된 트랙 표시
+                      if (revision.status === 'prepare' && !code) {
+                        const prevRevNo = revision.revNo - 1
+                        // 파일이 없거나(새 트랙) 이전 리비전 파일이면 표시
+                        const result = !track.latestFile || track.latestFile?.revNo === prevRevNo
+                        console.log('[필터] prepare 상태:', result,
+                          `(파일없음: ${!track.latestFile} 또는 ${track.latestFile?.revNo} === ${prevRevNo})`)
+                        return result
+                      }
+
+                      // 그 외에는 현재 리비전에서 업로드된 파일만 표시 (소유자/게스트 공통)
+                      const result = track.latestFile?.revNo === revision.revNo
+                      console.log('[필터] 결과:', result,
+                        `(${track.latestFile?.revNo} === ${revision.revNo})`)
+                      return result
+                    })
+                    .map((track) => {
                     const trackPins = pins.filter(p => p.trackId === track.id)
                     const trackFeedbacks = feedbacks.filter(f => f.trackId === track.id)
 
@@ -1187,8 +1216,8 @@ export function RevisionDrafts({ projectId, revNo, code, revision, activeTab = '
               </div>
             )}
 
-            {/* 디자이너 모드 - 다음 리비전 생성 버튼 */}
-            {!code && (revision?.status === 'reviewed' || revision?.status === 'submitted') && (
+            {/* 디자이너 모드 - 다음 리비전 생성 버튼 (게스트가 피드백 완료한 후에만 표시) */}
+            {!code && revision?.status === 'reviewed' && (
               <div className="mt-6 text-center">
                 <Button
                   className="bg-purple-600 hover:bg-purple-700"

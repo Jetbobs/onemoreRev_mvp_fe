@@ -76,7 +76,10 @@ function RevisionPageContent() {
   const [revision, setRevision] = useState<Revision | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
+  // 현재 리비전에서 업로드된 파일의 트랙 ID 목록
+  const [uploadedTrackIds, setUploadedTrackIds] = useState<Set<string>>(new Set())
+
   // 피드백 시스템 상태
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([])
   const [pins, setPins] = useState<Pin[]>([])
@@ -152,29 +155,67 @@ function RevisionPageContent() {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       let apiUrl = `/api/v1/revision/info?projectId=${encodeURIComponent(projectId)}&revNo=${encodeURIComponent(revNo)}`
       if (code) {
         apiUrl += `&code=${encodeURIComponent(code)}`
       }
-      
+
       const data = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}${apiUrl}`, {
         credentials: 'include'
       }).then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
       })
-      
+
       console.log('[revision] info response:', data)
-      
+
       const revisionData = data?.revision || data
       setRevision(revisionData)
-      
+
       // 피드백 데이터 로드
       if (revisionData?.feedbacks) {
         setFeedbacks(revisionData.feedbacks)
       }
-      
+
+      // 프로젝트 히스토리에서 현재 리비전에 업로드된 파일의 trackId 목록 가져오기
+      // 게스트 모드에서는 히스토리 API 접근 불가하므로 스킵
+      if (!code) {
+        try {
+          const historyData = await projectApi.logs(projectId)
+          console.log('[revision] ===== HISTORY API DEBUG =====')
+          console.log('[revision] Full history response:', JSON.stringify(historyData, null, 2))
+
+          const currentRevisionHistory = historyData.revisions?.find(
+            (r: any) => r.revNo === parseInt(revNo)
+          )
+
+          console.log('[revision] Current revision history:', JSON.stringify(currentRevisionHistory, null, 2))
+
+          if (currentRevisionHistory?.files) {
+            const trackIds = new Set(
+              currentRevisionHistory.files.map((f: any) => f.trackId.toString())
+            )
+            console.log('[revision] Uploaded track IDs for revNo', revNo, ':', Array.from(trackIds))
+            console.log('[revision] Files in this revision:', currentRevisionHistory.files.map((f: any) => ({
+              trackId: f.trackId,
+              filename: f.originalFilename,
+              uploadedAt: f.uploadedAt
+            })))
+            setUploadedTrackIds(trackIds)
+          } else {
+            console.warn('[revision] No files found in history for revNo', revNo)
+            setUploadedTrackIds(new Set())
+          }
+        } catch (historyErr) {
+          console.error('[revision] Failed to load history:', historyErr)
+          // 히스토리 로드 실패 시 빈 Set으로 (prepare 상태가 아니면 아무것도 표시 안됨)
+          setUploadedTrackIds(new Set())
+        }
+      } else {
+        console.log('[revision] Guest mode - skipping history API, will show all files with latestFile')
+      }
+
     } catch (err: any) {
       console.error('[revision] info error:', err)
       setError(err?.status === 401 ? '로그인이 필요합니다.' : '리비전 정보를 불러오지 못했습니다.')
@@ -768,9 +809,30 @@ function RevisionPageContent() {
                 <p className="text-gray-500 text-center py-8">트랙이 없습니다.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {revision.tracks.map((track) => {
-                    const trackPins = pins.filter(p => p.trackId === track.id)
-                    const trackFeedbacks = feedbacks.filter(f => f.trackId === track.id)
+                  {revision.tracks
+                    .filter(track => {
+                      // prepare 상태(편집 가능)일 때는 모든 트랙 표시
+                      if (canEditTrack()) {
+                        console.log(`[filter] Track ${track.id} (${track.name}): PASS - canEditTrack is true`)
+                        return true
+                      }
+                      // 그 외에는 현재 리비전에서 업로드된 파일이 있는 트랙만 표시
+                      // uploadedTrackIds가 비어있으면 히스토리 로드 실패이므로 파일이 있는 모든 트랙 표시
+                      if (uploadedTrackIds.size === 0) {
+                        const result = !!track.latestFile
+                        console.log(`[filter] Track ${track.id} (${track.name}): ${result ? 'PASS' : 'FAIL'} - uploadedTrackIds is empty, showing tracks with latestFile`)
+                        return result
+                      }
+                      // 현재 리비전에서 업로드된 트랙만 표시
+                      const hasTrack = uploadedTrackIds.has(track.id)
+                      console.log(`[filter] Track ${track.id} (${track.name}): ${hasTrack ? 'PASS' : 'FAIL'} - trackId ${hasTrack ? 'is' : 'is NOT'} in uploadedTrackIds`)
+                      console.log(`[filter]   - uploadedTrackIds:`, Array.from(uploadedTrackIds))
+                      console.log(`[filter]   - track.id:`, track.id, typeof track.id)
+                      return hasTrack
+                    })
+                    .map((track) => {
+                      const trackPins = pins.filter(p => p.trackId === track.id)
+                      const trackFeedbacks = feedbacks.filter(f => f.trackId === track.id)
                     
                     return (
                       <Card key={track.id} className="overflow-hidden">
