@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,7 +23,22 @@ export function LoginFormNew() {
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('')
 
   const router = useRouter()
+  const { isAuthenticated, checkAuth } = useAuthStore()
   const setUser = useAuthStore((state) => state.setUser)
+
+  // 이미 로그인된 사용자는 프로젝트 페이지로 리다이렉트
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      if (isAuthenticated) {
+        // 백엔드에 세션 유효성 확인
+        const isValid = await checkAuth()
+        if (isValid) {
+          router.push('/projects-new')
+        }
+      }
+    }
+    checkAuthStatus()
+  }, [isAuthenticated, checkAuth, router])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({

@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import { authApi } from '@/lib/api'
 import { useRouter } from 'next/navigation'
@@ -15,16 +14,14 @@ import { useRouter } from 'next/navigation'
 export function SignupForm() {
   const router = useRouter()
   const [formData, setFormData] = useState({
-    role: '',
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
     phone: ''
   })
-  
+
   const [touched, setTouched] = useState({
-    role: false,
     name: false,
     email: false,
     password: false,
@@ -56,9 +53,6 @@ export function SignupForm() {
     const value = formData[field as keyof typeof formData]
     
     switch (field) {
-      case 'role':
-        if (!value) return '역할을 선택해주세요.'
-        break
       case 'name':
         if (!value) return '이름을 입력해주세요.'
         if (value.length < 2) return '이름은 2자 이상 입력해주세요.'
@@ -78,7 +72,8 @@ export function SignupForm() {
         break
       case 'phone':
         if (!value) return '핸드폰번호를 입력해주세요.'
-        if (!/^01[0-9]-?[0-9]{4}-?[0-9]{4}$/.test(value.replace(/-/g, ''))) return '올바른 핸드폰번호 형식이 아닙니다.'
+        const phoneOnly = value.replace(/-/g, '')
+        if (!/^01[0-9]\d{7,8}$/.test(phoneOnly)) return '올바른 핸드폰번호 형식이 아닙니다. (예: 010-1234-5678)'
         break
     }
     return ''
@@ -133,26 +128,41 @@ export function SignupForm() {
       console.log('회원가입 시도:', formData)
       
       // API 호출
+      // 휴대폰 번호를 하이픈 형식으로 변환 (백엔드 요구사항)
+      const phoneFormatted = formData.phone.replace(/-/g, '').replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')
+
       const registerData = {
-        role: formData.role.toUpperCase(), // DESIGNER, CLIENT
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        phone: formData.phone
+        confirmPassword: formData.confirmPassword,
+        phone: phoneFormatted
       }
       
       const response = await authApi.register(registerData)
       console.log('회원가입 성공:', response)
       
       alert('회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.')
-      
+
       // 로그인 페이지로 리다이렉트
-      router.push('/login')
+      router.push('/login-new')
       
     } catch (error: any) {
       console.error('회원가입 에러:', error)
-      
-      const errorMessage = error.data?.message || error.message || '회원가입 중 오류가 발생했습니다.'
+      console.error('에러 상태:', error.status)
+      console.error('에러 데이터:', error.data)
+
+      let errorMessage = '회원가입 중 오류가 발생했습니다.'
+      if (error.data?.message) {
+        if (Array.isArray(error.data.message)) {
+          errorMessage = error.data.message.join('\n')
+        } else {
+          errorMessage = error.data.message
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
       alert(errorMessage)
     } finally {
       setIsLoading(false)
@@ -171,35 +181,6 @@ export function SignupForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          {/* 역할 선택 */}
-          <div className="space-y-2">
-            <Label>역할</Label>
-            <RadioGroup 
-              value={formData.role} 
-              onValueChange={(value) => handleInputChange('role', value)}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="designer" id="designer" className="border-gray-300" />
-                <Label htmlFor="designer" className="cursor-pointer">디자이너</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="client" id="client" className="border-gray-300" />
-                <Label htmlFor="client" className="cursor-pointer">클라이언트</Label>
-              </div>
-            </RadioGroup>
-            <div className="min-h-[24px]">
-              {getFieldError('role') && (
-                <Alert variant="destructive" className="py-0 border-0 bg-transparent px-0 flex items-center gap-2 [&>svg]:static [&>svg]:translate-y-0 [&>svg~*]:pl-0">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-500" />
-                  <AlertDescription className="text-xs text-red-500">
-                    {getFieldError('role')}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </div>
-
           {/* 이름 */}
           <div className="space-y-2">
             <Label htmlFor="name">이름</Label>
@@ -319,28 +300,27 @@ export function SignupForm() {
             </div>
             
             {/* 비밀번호 일치 표시 */}
-            {formData.confirmPassword && (
-              <div className="flex items-center gap-2">
-                {formData.password === formData.confirmPassword ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-xs text-green-500">비밀번호가 일치합니다</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-xs text-red-500">비밀번호가 일치하지 않습니다</span>
-                  </>
-                )}
-              </div>
-            )}
-            
             <div className="min-h-[24px]">
-              {getFieldError('confirmPassword') && (
+              {formData.confirmPassword && (
+                <div className="flex items-center gap-2">
+                  {formData.password === formData.confirmPassword ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="text-xs text-green-500">비밀번호가 일치합니다</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-4 w-4 text-red-500" />
+                      <span className="text-xs text-red-500">비밀번호가 일치하지 않습니다</span>
+                    </>
+                  )}
+                </div>
+              )}
+              {!formData.confirmPassword && getFieldError('confirmPassword') && (
                 <Alert variant="destructive" className="py-2 border-0 bg-transparent px-0 flex items-center gap-2 [&>svg]:static [&>svg]:translate-y-0 [&>svg~*]:pl-0">
                   <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-500" />
                   <AlertDescription className="text-xs text-red-500">
-                    {getFieldError('confirmPassword')}
+                    비밀번호 확인을 입력해주세요.
                   </AlertDescription>
                 </Alert>
               )}

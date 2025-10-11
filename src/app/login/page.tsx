@@ -1,11 +1,15 @@
-import { LoginForm } from "@/components/login-form"
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function Page() {
-  return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        <LoginForm />
-      </div>
-    </div>
-  )
+  const router = useRouter()
+
+  useEffect(() => {
+    // /login-new로 리다이렉트
+    router.replace('/login-new')
+  }, [router])
+
+  return null
 }

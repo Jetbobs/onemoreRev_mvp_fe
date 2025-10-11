@@ -61,7 +61,7 @@ export const authApi = {
     }),
 
   register: (userData: Record<string, unknown>) =>
-    apiFetch(API_CONFIG.ENDPOINTS.REGISTER, {
+    apiFetch(API_CONFIG.ENDPOINTS.SIGNUP, {
       method: 'POST',
       body: userData
     }),
